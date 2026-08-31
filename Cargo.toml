@@ -1,25 +1,16 @@
 [workspace]
 members = [
     "crates/runtime",
-    "crates/runtime-ffi",
-    "crates/runtime-types-ffi",
-    "crates/tauri-plugin-service",
-    "crates/tauri-plugin-client",
     "crates/tauri-plugin-holochain",
-    "crates/uniffi-bindgen-cli",
-    "apps/android-service-runtime/src-tauri",
-    "apps/holochain-runtime-example/src-tauri"
-]
-exclude = [
-    "apps/example-client-app/**"
+    "apps/holochain-runtime-example/src-tauri",
 ]
 resolver = "2"
 
 [workspace.package]
 edition = "2021"
 authors = ["Holochain Core Dev Team <devcore@holochain.org>"]
-homepage = "https://github.com/holochain/android-service-runtime"
-keywords = ["holochain", "android", "tauri", "p2p"]
+homepage = "https://github.com/holochain/tauri-runtime"
+keywords = ["holochain", "tauri", "p2p", "desktop", "mobile"]
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
@@ -29,9 +20,7 @@ license = "MIT OR Apache-2.0"
 # holochain re-adds `encryption` + `schema`; the backend itself is chosen per
 # target in crates/runtime/Cargo.toml.
 holochain = { version = "0.7.0", default-features = false }
-holochain_conductor_api = "0.7.0"
 holochain_types = "0.7.0"
-holochain_serialized_bytes = "0.0.57"
 # Network-stats types (ApiTransportStats) returned by AdminRequest::DumpNetworkStats;
 # pinned to the version holochain 0.7.0 resolves so it unifies to one copy.
 kitsune2_api = "0.5.0"
@@ -44,56 +33,12 @@ tauri = "2.5.1"
 tauri-plugin = "2.2.0"
 tauri-build = { version = "2.2.0", default-features = false }
 
-# Currently using fork of uniffi as a workaround
-# See https://github.com/holochain/android-service-runtime/issues/113
-uniffi = { package = "hc_uniffi", version = "=0.29.2" }
-
 base64 = "0.22"
 log = "0.4.25"
-android_logger = "0.14.1"
 serde = "1.0"
 serde_json = "1.0.140"
 thiserror = "2.0.11"
-bytes = "1.9.0"
 zeroize = "1.8.1"
 tempfile = "3.17.1"
 tokio = "1.43.0"
 uuid = "1.15.1"
-
-# TEMPORARY: proves the iOS keystore fix (docs/ios-test-build-plan.md, issue A).
-# Points holochain_keystore at a local checkout of holochain on branch
-# `ios-inproc-keystore` (cut from the holochain-0.7.0 tag), where
-# spawn_lair_keystore_in_proc runs lair via InProcKeystore instead of
-# StandaloneServer and so never binds a unix socket. Requires a sibling
-# ../holochain checkout; remove once the change is upstream.
-# Every holochain-repo crate in our graph must be patched together, not just
-# holochain_keystore: these crates path-depend on each other, so patching one
-# in isolation pulls a *second* copy of holo_hash (etc.) into the graph and
-# trait impls stop matching across the two — e.g. "no method named `sign_raw`
-# found for struct `HoloHash<T>`". All 25 are at 0.7.0 on both sides.
-[patch.crates-io]
-fixt = { path = "../holochain/crates/fixt" }
-hdi = { path = "../holochain/crates/hdi" }
-hdk = { path = "../holochain/crates/hdk" }
-hdk_derive = { path = "../holochain/crates/hdk_derive" }
-holo_hash = { path = "../holochain/crates/holo_hash" }
-holochain = { path = "../holochain/crates/holochain" }
-holochain_cascade = { path = "../holochain/crates/holochain_cascade" }
-holochain_conductor_api = { path = "../holochain/crates/holochain_conductor_api" }
-holochain_conductor_config = { path = "../holochain/crates/holochain_conductor_config" }
-holochain_data = { path = "../holochain/crates/holochain_data" }
-holochain_integrity_types = { path = "../holochain/crates/holochain_integrity_types" }
-holochain_keystore = { path = "../holochain/crates/holochain_keystore" }
-holochain_metrics = { path = "../holochain/crates/holochain_metrics" }
-holochain_nonce = { path = "../holochain/crates/holochain_nonce" }
-holochain_p2p = { path = "../holochain/crates/holochain_p2p" }
-holochain_secure_primitive = { path = "../holochain/crates/holochain_secure_primitive" }
-holochain_state = { path = "../holochain/crates/holochain_state" }
-holochain_state_types = { path = "../holochain/crates/holochain_state_types" }
-holochain_timestamp = { path = "../holochain/crates/timestamp" }
-holochain_trace = { path = "../holochain/crates/holochain_trace" }
-holochain_types = { path = "../holochain/crates/holochain_types" }
-holochain_util = { path = "../holochain/crates/holochain_util" }
-holochain_websocket = { path = "../holochain/crates/holochain_websocket" }
-holochain_zome_types = { path = "../holochain/crates/holochain_zome_types" }
-mr_bundle = { path = "../holochain/crates/mr_bundle" }

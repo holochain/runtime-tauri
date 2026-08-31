@@ -1,7 +1,9 @@
 use crate::{Error, HolochainExt, Result};
 use base64::prelude::*;
-use holochain::prelude::AgentPubKey;
-use holochain_conductor_runtime_types_ffi::{CellIdFfi, ZomeCallParamsFfi};
+use holochain::prelude::{
+    AgentPubKey, CapSecret, CellId, DnaHash, ExternIO, FunctionName, Nonce256Bits, Timestamp,
+    ZomeCallParams, ZomeName,
+};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Runtime, WebviewWindow};
 
@@ -29,6 +31,45 @@ pub(crate) struct SignZomeCallResponse {
     signature: Vec<u8>,
 }
 
+/// Build holochain's [`ZomeCallParams`] from the flat wire shape.
+///
+/// Every field arrives from the webview, so each fallible conversion reports
+/// [`Error::Serialization`] rather than panicking — the same contract
+/// [`sign_payload`] follows. The `from_raw_39` and fixed-width `try_into`
+/// conversions all panic on bad input if used directly.
+fn zome_call_params(request: SignZomeCallRequest) -> Result<ZomeCallParams> {
+    let nonce: [u8; 32] = request
+        .nonce
+        .as_slice()
+        .try_into()
+        .map_err(|_| Error::Serialization("nonce must be 32 bytes".to_string()))?;
+
+    let cap_secret = request
+        .cap_secret
+        .map(|secret| {
+            <[u8; 64]>::try_from(secret.as_slice())
+                .map_err(|_| Error::Serialization("cap secret must be 64 bytes".to_string()))
+        })
+        .transpose()?;
+
+    Ok(ZomeCallParams {
+        provenance: AgentPubKey::try_from_raw_39(request.provenance)
+            .map_err(|e| Error::Serialization(format!("invalid provenance: {e}")))?,
+        cell_id: CellId::new(
+            DnaHash::try_from_raw_39(request.cell_id_dna_hash)
+                .map_err(|e| Error::Serialization(format!("invalid cell dna hash: {e}")))?,
+            AgentPubKey::try_from_raw_39(request.cell_id_agent_pub_key)
+                .map_err(|e| Error::Serialization(format!("invalid cell agent key: {e}")))?,
+        ),
+        zome_name: ZomeName::new(request.zome_name),
+        fn_name: FunctionName::new(request.fn_name),
+        cap_secret: cap_secret.map(CapSecret::from),
+        payload: ExternIO::from(request.payload),
+        nonce: Nonce256Bits::from(nonce),
+        expires_at: Timestamp(request.expires_at),
+    })
+}
+
 /// Sign a zome call with the conductor's keystore.
 ///
 /// Invoked by the signer injected into the webview, so `@holochain/client` in
@@ -38,25 +79,12 @@ pub(crate) async fn sign_zome_call<R: Runtime>(
     app: AppHandle<R>,
     request: SignZomeCallRequest,
 ) -> Result<SignZomeCallResponse> {
-    // Reuse the runtime-types-ffi conversion to build holochain's ZomeCallParams.
-    let params = ZomeCallParamsFfi {
-        provenance: request.provenance,
-        cell_id: CellIdFfi {
-            dna_hash: request.cell_id_dna_hash,
-            agent_pub_key: request.cell_id_agent_pub_key,
-        },
-        zome_name: request.zome_name,
-        fn_name: request.fn_name,
-        cap_secret: request.cap_secret,
-        payload: request.payload,
-        nonce: request.nonce,
-        expires_at: request.expires_at,
-    };
+    let params = zome_call_params(request)?;
 
     let signed = app
         .holochain()?
         .try_runtime()?
-        .sign_zome_call(params.into())
+        .sign_zome_call(params)
         .await?;
 
     Ok(SignZomeCallResponse {
