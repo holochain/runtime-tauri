@@ -1,6 +1,5 @@
 use crate::hc_auth::{self, HcAuthConfig, HcAuthStatus};
 use crate::{AppAuth, RuntimeConfig, RuntimeError, RuntimeResult, DEVICE_SEED_LAIR_TAG};
-use crate::{AuthorizedAppClientsManager, ClientId};
 use holochain::conductor::api::IssueAppAuthenticationTokenPayload;
 use holochain::conductor::api::{AppAuthenticationTokenIssued, ZomeCallParamsSigned};
 use holochain::{
@@ -33,7 +32,6 @@ pub type AppAuths = Arc<RwLock<HashMap<InstalledAppId, AppAuth>>>;
 pub struct Runtime {
     conductor: ConductorHandle,
     app_auths: AppAuths,
-    authorized_app_clients: Arc<AuthorizedAppClientsManager>,
 
     // --- Phase 3: controllable boot / hc-auth / restart-keeping-lair ---
     /// The lair keystore client, spawned in-proc *before* the conductor and
@@ -236,9 +234,6 @@ impl Runtime {
         Ok(Self {
             conductor,
             app_auths: Arc::new(RwLock::new(HashMap::new())),
-            authorized_app_clients: Arc::new(AuthorizedAppClientsManager::new(
-                data_root_path.clone(),
-            )?),
             lair_client,
             device_agent_key,
             passphrase,
@@ -617,9 +612,6 @@ impl Runtime {
         Ok(Runtime {
             conductor,
             app_auths: Arc::new(RwLock::new(HashMap::new())),
-            authorized_app_clients: Arc::new(AuthorizedAppClientsManager::new(
-                self.data_root_path.clone(),
-            )?),
             lair_client: self.lair_client.clone(),
             device_agent_key: self.device_agent_key.clone(),
             passphrase: self.passphrase.clone(),
@@ -742,24 +734,6 @@ impl Runtime {
         }
 
         self.ensure_app_websocket(installed_app_id).await
-    }
-
-    pub fn authorize_app_client(
-        &self,
-        client_uid: ClientId,
-        installed_app_id: InstalledAppId,
-    ) -> RuntimeResult<()> {
-        self.authorized_app_clients
-            .authorize(client_uid, installed_app_id)
-    }
-
-    pub fn is_app_client_authorized(
-        &self,
-        client_uid: ClientId,
-        installed_app_id: InstalledAppId,
-    ) -> RuntimeResult<bool> {
-        self.authorized_app_clients
-            .is_authorized(client_uid, installed_app_id)
     }
 
     /// Dispatch an [`AppRequest`] for `installed_app_id` against the in-process

@@ -46,11 +46,7 @@ pub enum RuntimeError {
     #[error("InstalledAppId must be specified when installing an app")]
     InstalledAppIdNotSpecified,
 
-    #[error("Failed to read persisted data from file: {0}")]
-    PersistedFileReadError(String),
 
-    #[error("Failed to write persisted data to file: {0}")]
-    PersistedFileWriteError(String),
 
     #[error("Invalid Arguments: {0}")]
     InvalidArguments(String),
