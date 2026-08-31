@@ -3,5 +3,5 @@
 
 
 ### TODO:
-- [ ] CHANGELOG(s) updated with appropriate info
-- [ ] docs updated (`pnpm run build:doc`)
+- [ ] CHANGELOG updated with appropriate info
+- [ ] `make test` passes
