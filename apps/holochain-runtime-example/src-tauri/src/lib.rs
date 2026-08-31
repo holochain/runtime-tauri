@@ -24,8 +24,15 @@ const APP_ID: &str = "forum";
 const HAPP_BUNDLE: &[u8] = include_bytes!("../../../../crates/runtime/fixtures/forum.happ");
 
 /// Desktop keeps the historical throwaway temp dir (the integration test relies
-/// on a fresh conductor per run); mobile has no writable temp dir, so use the
-/// per-app data dir Android/iOS give us.
+/// on a fresh conductor per run); mobile uses the per-app data dir.
+///
+/// iOS needed two extra arms until holochain's in-process keystore stopped
+/// binding a unix socket: an iOS app container path is far longer than the
+/// ~104-byte AF_UNIX limit (158 B for this directory on device, 236 B in the
+/// simulator), so the conductor could not boot from here at all. With the
+/// socket gone the path length is irrelevant again and mobile is uniform.
+/// Requires the `holochain_keystore` patch in the workspace Cargo.toml — see
+/// docs/ios-test-build-plan.md §4.0.
 fn data_dir(app: &AppHandle) -> PathBuf {
     #[cfg(desktop)]
     {
