@@ -6,6 +6,8 @@ packages:
   - '!**/dist-js/**'
   - '!**/permissions/**'
 allowBuilds:
+  bufferutil: true
+  es5-ext: true
   esbuild: true
 minimumReleaseAgeExclude:
   - '@holochain/client@0.21.0'

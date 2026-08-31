@@ -1,5 +1,28 @@
 # Unreleased
 
+- The repository is now scoped to the cross-platform Tauri runtime: the
+  `holochain-conductor-runtime` crate, the in-process `tauri-plugin-holochain`,
+  and the example app for desktop, Android and iOS. The Android
+  conductor-as-a-foreground-service stack (the service and client plugins, the
+  UniFFI bindings, and the Kotlin libraries) now lives in
+  [holochain/android-service-runtime](https://github.com/holochain/android-service-runtime).
+- iOS support merged: the example app builds and runs on device and simulator
+  under holochain's `wasmi` backend, selected by target cfg. Requires an
+  in-process lair keystore that does not bind a unix socket, which is not yet
+  upstream — see `docs/ios-test-build-plan.md`.
+- BREAKING: `holochain-conductor-runtime` drops `AuthorizedAppClientsManager`,
+  `ClientId`, `AutostartConfigManager`, the `Persisted` trait, and
+  `Runtime::authorize_app_client` / `is_app_client_authorized`. These gated
+  cross-app access by Android package name and persisted a start-on-boot flag
+  for the foreground service; they have no meaning in an in-process runtime and
+  move with the Android stack.
+- `tauri-plugin-holochain` no longer depends on
+  `holochain-conductor-runtime-types-ffi`. It built `ZomeCallParams` by way of
+  the UniFFI types purely to reuse a conversion, which pulled UniFFI into an
+  otherwise FFI-free dependency tree. The conversion is now inline and reports
+  a malformed nonce, cap secret, provenance or cell id as
+  `Error::Serialization` instead of panicking.
+
 # 0.3.0
 
 - BREAKING: `HolochainPlugin::try_runtime` reports a failed conductor boot as the new `Error::SetupFailed`, carrying the cause, instead of `Error::NotReady` forever. `holochain://setup-failed` still fires with the same payload.

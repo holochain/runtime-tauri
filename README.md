@@ -1,94 +1,63 @@
-# Holochain Android Runtime
+# Holochain Tauri Runtime
 
-An Android app and Tauri plugins that provide an integrated approach for running Holochain apps on mobile devices. This includes:
-- An Android app for managing a system-wide Holochain conductor running as an [Android Foreground Service](https://developer.android.com/develop/background-work/services/fgs). The Foreground Service can run persistently, even when the app is closed, ensuring that you can be a reliable contributor to the peer-to-peer networks of your apps.
-- A Tauri plugin used by that Android app under-the-hood, for managing the system-wide Holochain conductor service.
-- A Tauri plugin for your tauri holochain app, so that it uses the system-wide Holochain conductor service, rather than bundling its own conductor.
+A Tauri-based runtime for building Holochain apps that run on desktop, Android and iOS from one codebase.
 
+An app built on it links a Holochain conductor directly into its own binary — one Rust process, no UniFFI, no Kotlin, no separate service, no cross-process IPC. The webview talks to the conductor over Tauri IPC, so `@holochain/client` in the UI works without a loopback websocket or an open admin port.
 
-## Components
+```
+your Tauri app → tauri-plugin-holochain → holochain-conductor-runtime → conductor
+```
 
-### Android Apps
+## What's here
 
-#### android-service-runtime
+| Crate | |
+| --- | --- |
+| [holochain-conductor-runtime](./crates/runtime) | Framework-free wrapper around the Holochain conductor. Two-phase boot (lair first, then the conductor on that same keystore), app install/enable/disable/uninstall, app websockets, zome-call and payload signing, key generation and seed import/export, hc-auth, network stats. Talks to the conductor through `AdminInterfaceApi`/`AppInterfaceApi` in-process — it never opens an admin websocket. |
+| [tauri-plugin-holochain](./crates/tauri-plugin-holochain) | The Tauri integration, and the runtime's only consumer here. Boots the conductor, binds webview windows to installed apps, forwards signals, serves the App API over Tauri IPC, and signs zome calls for the UI. |
 
-An Android app for managing a Holochain conductor running as a foreground service. Start & stop the Holochain service, view installed hApps, uninstall hApps.
+[apps/holochain-runtime-example](./apps/holochain-runtime-example) is a working app for all three platforms: it boots a conductor, installs the bundled `forum.happ` fixture, and opens a window connected to it.
 
-Uses the [tauri-plugin-holochain-service](#tauri-plugin-holochain-service) under-the-hood to run a Holochain conductor as an android service.
+The plugin injects a `__HC_TAURI_HOLOCHAIN__` env into each window it opens. The UI reads it and connects with `@holochain/client` over Tauri IPC; the older loopback-app-websocket path is still selectable per window.
 
-[See README](./apps/android-service-runtime/README.md)
+## Platform support
 
+| | Status |
+| --- | --- |
+| Desktop (Linux, macOS, Windows) | Supported. Tests run here. |
+| Android | Supported. Runs in-process, no foreground service involved. |
+| iOS | Builds and runs — with one unreleased dependency, see below. |
 
-#### example-client-app
+iOS was verified end to end on an iPhone 12 mini (iOS 18.7.8) and an iPhone 17 Pro simulator: conductor boot, hApp install, zome call, signing, and an app signal, persisting across restarts. It needs holochain's in-process lair keystore to stop binding a unix socket — an iOS app-container path blows past the ~104-byte `AF_UNIX` limit. That change is **not upstream yet**, so iOS will not boot against released holochain 0.7.0. See [docs/ios-test-build-plan.md](./docs/ios-test-build-plan.md) §4.0 and "Upstream issues to file → A".
 
-An example holochain app, based on the scaffolded example forum app.
+Two other iOS notes: the conductor runs under holochain's `wasmi` interpreter rather than the cranelift JIT (iOS forbids JIT), selected by target cfg in [crates/runtime/Cargo.toml](./crates/runtime/Cargo.toml); and iOS suspends backgrounded apps, so the conductor pauses when the app is not in front.
 
-Uses the [tauri-plugin-holochain-service-client](#tauri-plugin-holochain-service) under-the-hood to connect to the Holochain conductor provided by the [android-service-runtime](#android-service-runtime).
+## Getting started
 
-[See README](./apps/android-service-runtime/README.md)
+The build needs a pinned Rust toolchain with the Android and iOS targets, the Android SDK/NDK, Holochain dev tools, and the Tauri desktop libraries. The Nix flake provides all of it:
 
+```sh
+nix develop
+pnpm install
+```
 
-### Tauri Plugins
+Run the example:
 
-#### tauri-plugin-holochain-service
+```sh
+pnpm start:example          # desktop
+pnpm start:example-android  # Android device or emulator
+pnpm start:example-ios      # iOS device or simulator (macOS host)
+```
 
-A Tauri plugin for building Android apps that run a Holochain conductor as an [Foreground Service](https://developer.android.com/develop/background-work/services/fgs)
+Run what CI runs — formatting, clippy, both test suites, and a build of the example:
 
-[See README](./crates/tauri-plugin-service/README.md)
+```sh
+make test
+```
 
-#### tauri-plugin-holochain-service-client
+## Android's shared-conductor model
 
-A Tauri plugin for building Android apps that make use of the android-service-runtime Android app, instead of bundling their own conductor.
-
-[See README](./crates/tauri-plugin-client/README.md)
-
-### Kotlin Libraries
-
-#### org.holochain.androidserviceruntime.client
-
-A Kotlin library containing a client class and types needed for connecting to the HolochainService in [holochain-service].
-
-[See README](./libraries/client/README.md)
-
-##### Documentation
-
-[HolochainServiceAppClient](libraries/client/docs/org.holochain.androidserviceruntime.client/-holochain-service-app-client/index.md)
-
-[HolochainServiceAdminClient](libraries/client/docs/org.holochain.androidserviceruntime.client/-holochain-service-admin-client/index.md)
-
-#### org.holochain.androidserviceruntime.service
-
-A Kotlin library containing the HolochainService class, which runs an Android Foreground Service that wraps calls to the [holochain-conductor-runtime-ffi] and exposes an IPC interface for interacting with it.
-
-[Documentation](libraries/client/docs/org.holochain.androidserviceruntime.service/index.md)
-
-[See README](./libraries/service/README.md)
-
-### Rust Crates
-
-#### holochain-conductor-runtime
-
-A slim wrapper around holochain Conductor with calls wrapping *some* AdminInterfaceApi requests. It currently only implements calls for the requests needed in this project.
-
-[See README](./crates/runtime/README.md)
-
-#### holochain-conductor-runtime-ffi
-
-A wrapper around [holochain-conductor-runtime](#holochain-conductor-runtime) with types from [holochain-conductor-runtime-types-ffi](#holochain-conductor-runtime-types-ffi) with Uniffi-generated FFI bindings, to facilitate usage of the crate in Kotlin code.
-
-[See README](./crates/runtime-ffi/README.md)
-
-#### holochain-conductor-runtime-types-ffi
-
-The input and output types used in [holochain-conductor-runtime-ffi](#holochain-conductor-runtime), compatible with Uniffi-generated FFI bindings, to facilitate usage of the crate in Kotlin code.
-
-The FFI types are defined in a separate crate to ensure they can be used in the kotlin client library, without needing to bundle the entire runtime.
-
-[See README](./crates/runtime-types-ffi/README.md)
-
+A separate deployment model exists for Android, where one app runs the conductor as a foreground service and other apps reach it over AIDL/Binder, so the device stays a reliable peer for every hApp installed on it. That stack — the service and client Tauri plugins, the UniFFI bindings, and the Kotlin libraries — lives in [holochain/android-service-runtime](https://github.com/holochain/android-service-runtime) and is not part of this repo.
 
 ## Development
 
-See the `README.md` files within each component for development info.
-
-See the [DEVELOPMENT.md](./DEVELOPMENT.md) for additional developer information, not specific to one component.
+[DEVELOPMENT.md](./DEVELOPMENT.md) covers bumping the Holochain version, regenerating test fixtures, and releasing.

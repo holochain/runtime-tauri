@@ -1,77 +1,41 @@
 # Contributing
 
-To bump the holochain version you will need to do these things:
-1. update all holochain dependencies in the top-level `Cargo.toml` file
-2. do a `nix flake update` before `nix develop` to bring down the latest Holochain version.  Note that if you are updating to a major version you may need to change the source for `holonix.url` and `taurie-plugin-holochain.url` in the `flake.nix` file first.
-3. make any updates necessary to the crates due to any changes in Holochain.  You should be able to check this by running `npm test` which should build all the crates and test the `client` and the `service` 
-4. if there have been major changes you many need to create new fixtures for the tests in `crates/runtime/fixtures` and `crates/runtime-ffi/fixtures` by using the scaffolding tool from the current version of Holochain to build the `forum.happ` file (which you do by running `hc-scaffold example` and the following the instructions to initialize the generated repo and finally running `npm run package`)
-5. Finally you to actually do a release you publish all the components listed in the following order:
+## Bumping the Holochain version
 
-## Publish runtime-types-ffi crate release
+1. Update the holochain dependencies in the top-level `Cargo.toml`.
+2. Run `nix flake update` before `nix develop` to pull the matching Holochain
+   toolchain. For a major version you will also need to change `holonix.url` in
+   `flake.nix` first (e.g. `main-0.7` → `main-0.8`).
+3. Make whatever changes the new Holochain API requires. `make test` builds both
+   crates and runs their suites.
+4. For a major version the test fixture usually has to be rebuilt. Use the
+   scaffolding tool from the matching Holochain release to regenerate
+   `crates/runtime/fixtures/forum.happ`: run `hc-scaffold example`, follow the
+   instructions to initialize the generated repo, then `npm run package`.
 
-1. Bump crate version in `crates/runtime-types-ffi/Cargo.toml`
+The wasm execution backend is chosen per target in `crates/runtime/Cargo.toml`,
+not by a cargo feature — `wasmer-sys-cranelift` everywhere except iOS, which
+gets `wasmer-wasmi` because it forbids JIT. It has to be a target cfg because
+`tauri ios dev/build` offers `--features` but no `--no-default-features`, so a
+feature-based default would silently link the JIT into the iOS binary. This is
+why `holochain` is declared `default-features = false` at the workspace root and
+every member re-adds `encryption` + `schema`.
 
-2. Create and push a git tag with a matching format to trigger the release CI.
+## Testing
 
-    The git tag format is: `runtime-types-ffi-vX.Y.Z`, where "X.Y.Z" is replaced with the version number.
-    
-## Publish tauri-plugin-client crate release
+`make test` is what CI runs: `cargo fmt --check`, `cargo clippy -Dwarnings`, the
+`holochain-conductor-runtime` and `tauri-plugin-holochain` suites, and a build of
+the example app. The suites boot real conductors, so expect a few minutes.
 
-1. Bump crate version in `crates/tauri-plugin-client/Cargo.toml`
+The example app's UI must be built before the Rust build will succeed — Tauri
+resolves `frontendDist` at compile time via `generate_context!`. `make test` and
+the `pnpm start:*` scripts do this for you; a bare `cargo build -p
+holochain-runtime-example` will not.
 
-2. Create and push a git tag with a matching format to trigger the release CI.
+## Releasing
 
-    The git tag format is: `tauri-plugin-client-vX.Y.Z`, where "X.Y.Z" is replaced with the version number.
-
-## Publish tauri-plugin-service crate release
-
-1. Bump crate version in `crates/tauri-plugin-service/Cargo.toml`
-
-2. Create and push a git tag with a matching format to trigger the release CI.
-
-    The git tag format is: `tauri-plugin-service-vX.Y.Z`, where "X.Y.Z" is replaced with the version number.
-
-## Publish client library release
-
-1. Bump versions of kotlin libraries.
-
-    The are specified in `libraries/client/build.gradle.kts` under `mavenPublishing.coordinates`.
-
-2. Create and push a git tag with a matching format to trigger the release CI.
-
-    The git tag format is: `client-vX.Y.Z`, where "X.Y.Z" is replaced with the version number.
-
-## Publish service library release
-
-1. Bump versions of kotlin libraries.
-
-    The are specified in `libraries/service/build.gradle.kts` under `mavenPublishing.coordinates`.
-
-2. Create and push a git tag with a matching format to trigger the release CI.
-
-    The git tag format is: `service-vX.Y.Z`, where "X.Y.Z" is replaced with the version number.
-
-## Publish app releases (android-service-runtime & example-client-app)
-
-1. Bump versions of tauri apps.
-
-    These are specified in multiple files (although only the `tauri.conf.json` file actually alters the built android app version):
-    - `apps/*/src-tauri/tauri.conf.json`
-    - `apps/*/src-tauri/Cargo.toml`
-    - `apps/*/package.json`
-
-2. Create and push a git tag with a matching format to trigger the release CI.
-
-    The git tag format is: `android-service-runtime-vX.Y.Z`. Where "X.Y.Z" is replaced with the version number.
-
-3. Wait for the release CI to complete. It will create a draft release, build both apps, and upload them to the draft release.
-4. Visit the github releases page, and publish the draft release.
-
-
-
-
-## CI
-
-Note that the CI jobs `build-tauri-plugins` do *not* publish the kotlin client and service libraries to the local Maven repository.
-
-If your PR makes changes to the client or service library, it will need to be published to Maven Central, before the CI jobs `build-tauri-plugins` will pass.
+1. Bump the crate versions in `crates/runtime/Cargo.toml` and
+   `crates/tauri-plugin-holochain/Cargo.toml`, and the path-dependency version
+   the plugin declares for the runtime.
+2. Add a `CHANGELOG.md` entry.
+3. Create and push a git tag to trigger the release CI.

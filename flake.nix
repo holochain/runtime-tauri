@@ -1,5 +1,5 @@
 {
-  description = "Holochain Android Service Runtime — development environment";
+  description = "Holochain Tauri Runtime — development environment";
 
   # We depend on holonix only for the Holochain toolchain (holochain, hc,
   # hc-scaffold, lair-keystore, ...) and the rust-overlay it already pins.

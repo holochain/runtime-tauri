@@ -1,10 +1,17 @@
 # holochain-conductor-runtime
 
-A simple wrapper around the [`holochain`](https://docs.rs/holochain/latest/holochain/) crate, with functions to expose interacting with the [`holochain::Conductor`](https://docs.rs/holochain/latest/holochain/conductor/index.html) directly.
+A wrapper around the [`holochain`](https://docs.rs/holochain/latest/holochain/) crate exposing the [`Conductor`](https://docs.rs/holochain/latest/holochain/conductor/index.html) directly, with no host-framework or platform concerns.
 
-It is intended to be a general-purpose wrapper for holochain runtime. 
+It calls the conductor through `AdminInterfaceApi` and `AppInterfaceApi` in-process rather than over a websocket, so no admin interface is ever exposed to the network.
 
-Additionally, some features are included for its use as an Android runtime. These may or may not be useful for other contexts. These are:
+What it covers:
 
-- Autostart management: tracking if the runtime should be started on system launch. This logic is located in ['autostart.rs']('./src/autostart.rs').
-- App Client Authorization: tracking which end-user android apps (specified by a package identifier) are allowed to call specified holochain apps. This logic is located in ['authorization.rs'](./src/authorization.rs).
+- **Two-phase boot.** Lair is spawned first, the hc-auth flow (if configured) signs a challenge against it and injects the resulting auth material into the `NetworkConfig`, and only then is the conductor built on that same keystore. This is what makes authenticated bootstrap and relay work on a first boot.
+- **App lifecycle** — install, enable, disable, uninstall, list, and a `setup_app` that does the install-if-needed/enable/authenticate sequence.
+- **Signing** — zome calls, and arbitrary payloads against a caller-chosen agent key.
+- **Keys** — device key derivation, agent key generation, seed import and export.
+- **App API and signals** — `handle_app_request` serves the full App API in-process; `subscribe_to_app_signals` yields an app's signal stream.
+
+`handle_app_request` does not authorize anything: the caller is responsible for scoping the `installed_app_id` to what the requester may reach.
+
+Its consumer in this repo is [`tauri-plugin-holochain`](../tauri-plugin-holochain).
