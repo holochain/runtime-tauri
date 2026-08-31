@@ -46,8 +46,6 @@ pub enum RuntimeError {
     #[error("InstalledAppId must be specified when installing an app")]
     InstalledAppIdNotSpecified,
 
-
-
     #[error("Invalid Arguments: {0}")]
     InvalidArguments(String),
 }

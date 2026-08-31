@@ -1,17 +1,11 @@
 packages:
-  - crates/tauri-plugin-service
-  - crates/tauri-plugin-client
-  - apps/android-service-runtime
-  - apps/example-client-app
-  - apps/example-client-app/ui
+  - crates/tauri-plugin-holochain
   - apps/holochain-runtime-example
   - '!**/android/**'
+  - '!**/apple/**'
   - '!**/dist-js/**'
   - '!**/permissions/**'
 allowBuilds:
-  bufferutil: true
-  electron: true
-  es5-ext: true
   esbuild: true
 minimumReleaseAgeExclude:
   - '@holochain/client@0.21.0'

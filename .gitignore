@@ -11,3 +11,5 @@ yarn.lock
 /.tauri
 /target
 node_modules/
+# JS build intermediate for the plugin env script
+dist-js-tmp/

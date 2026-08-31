@@ -1,79 +1,26 @@
 {
-    "name": "android-service-runtime-dev",
-    "scripts": {
-      "build:runtime-ffi": "cd crates/runtime-ffi && ./scripts/build.sh",
-      "build:runtime-types-ffi": "cd crates/runtime-types-ffi && ./scripts/build.sh",
-      "build:client": "cd libraries/client && ./gradlew build",
-      "build:service": "cd libraries/service && ./scripts/build.sh",
-      "build:tauri-plugin-client": "pnpm run --dir crates/tauri-plugin-client build:single-target-arch:x86_64",
-      "build:tauri-plugin-service": "pnpm run --dir crates/tauri-plugin-service build:single-target-arch:x86_64",
-      
-      "build-deps:client": "pnpm run build:runtime-types-ffi && pnpm run build:client",
-      "build-deps:service": "pnpm run build:runtime-ffi && pnpm run build:service",
-      "build-deps:tauri-plugin-client": "pnpm run build:tauri-plugin-client && pnpm run build:tauri-plugin-service",
-      "build-all:client": "pnpm run build-deps:client && pnpm run build:client",
-      "build-all:service": "pnpm run build-deps:service && pnpm run build:service",
+  "name": "tauri-runtime-dev",
+  "private": true,
+  "scripts": {
+    "build:plugin-js": "pnpm run --dir crates/tauri-plugin-holochain build",
+    "build:example": "npm --prefix apps/holochain-runtime-example/ui install && npm --prefix apps/holochain-runtime-example/ui run build",
 
-      "build-publish:local:client": "pnpm run build-all:client && pnpm run publish:local:client",
-      "build-publish:local:service": "pnpm run build-all:service && pnpm run publish:local:service",
+    "start:example": "pnpm run build:example && cargo run -p holochain-runtime-example",
+    "start:example-android": "pnpm run build:example && pnpm run --dir apps/holochain-runtime-example start:android",
+    "start:example-ios": "pnpm run build:example && pnpm run --dir apps/holochain-runtime-example start:ios",
 
-      "build:single-target:runtime-ffi": "cd crates/runtime-ffi && ./scripts/build-single-target.sh",
-      "build:single-target:runtime-types-ffi": "cd crates/runtime-types-ffi && ./scripts/build-single-target.sh",
-      "build:single-target:tauri-plugin-client": "pnpm run --dir crates/tauri-plugin-client build:single-target",
-      "build:single-target:tauri-plugin-service": "pnpm run --dir crates/tauri-plugin-service build:single-target",
-      "build:single-target-arch:aarch64-linux-android": "pnpm run build:single-target:runtime-types-ffi aarch64-linux-android && pnpm run build:client && pnpm run publish:local:client && pnpm run build:single-target:runtime-ffi aarch64-linux-android && pnpm run build:service && pnpm run publish:local:service && pnpm run build:single-target:tauri-plugin-client aarch64-linux-android && pnpm run build:single-target:tauri-plugin-service aarch64-linux-android",
+    "build:example-android": "pnpm run build:example && pnpm run --dir apps/holochain-runtime-example build:android",
+    "build:example-ios": "pnpm run build:example && pnpm run --dir apps/holochain-runtime-example build:ios",
 
-      "build:example-client-app": "pnpm run --dir apps/example-client-app build:android",
-      "build:android-service-runtime": "pnpm run --dir apps/android-service-runtime build:android",
-      "build:holochain-runtime-example": "pnpm run --dir apps/holochain-runtime-example build:android",
+    "test:runtime": "RUST_BACKTRACE=1 RUST_LOG=info cargo test -p holochain-conductor-runtime -- --nocapture",
+    "test:tauri-plugin-holochain": "RUST_BACKTRACE=1 RUST_LOG=info cargo test -p tauri-plugin-holochain -- --nocapture",
+    "test:example": "pnpm run build:example && cargo build -p holochain-runtime-example",
+    "test": "pnpm run test:runtime && pnpm run test:tauri-plugin-holochain && pnpm run test:example",
 
-      "lint:fix:client": "cd libraries/client && ./gradlew formatKotlin",
-      "lint:fix:service": "cd libraries/service && ./gradlew formatKotlin",
-      "lint:fix:tauri-plugin-client": "cd crates/tauri-plugin-client/android && ./gradlew formatKotlin",
-      "lint:fix:tauri-plugin-service": "cd crates/tauri-plugin-service/android && ./gradlew formatKotlin",
-      "lint:fix": "pnpm run lint:fix:client && pnpm run lint:fix:service && pnpm run lint:fix:tauri-plugin-client && pnpm run lint:fix:tauri-plugin-service",
-      "lint:client": "cd libraries/client && ./gradlew lintKotlin",
-      "lint:service": "cd libraries/service && ./gradlew lintKotlin",
-      "lint:tauri-plugin-client": "cd crates/tauri-plugin-client/android && ./gradlew lintKotlin",
-      "lint:tauri-plugin-service": "cd crates/tauri-plugin-service/android && ./gradlew lintKotlin",
-      "lint": "pnpm run lint:client && pnpm run lint:service && pnpm run lint:tauri-plugin-client && pnpm run lint:tauri-plugin-service",
-
-      "publish:client": "cd libraries/client && ./gradlew publishAndReleaseToMavenCentral",
-      "publish:service": "cd libraries/service && ./gradlew publishAndReleaseToMavenCentral",
-      "publish:runtime-types-ffi": "cargo publish -p holochain-conductor-runtime-types-ffi",
-      "publish:tauri-plugin-client": "cargo publish -p tauri-plugin-holochain-service-client --no-verify",
-      "publish:tauri-plugin-service": "cargo publish -p tauri-plugin-holochain-service --no-verify",
-      "publish": "pnpm run publish:client && pnpm run publish:service",
-
-      "publish:local:client": "cd libraries/client && ./gradlew publishToMavenLocal",
-      "publish:local:service": "cd libraries/service && ./gradlew publishToMavenLocal",
-      "publish:local": "pnpm run publish:local:client && pnpm run publish:local:service",
-
-      "doc:md:client": "cd libraries/client && ./gradlew dokkaGenerate",
-      "doc:md:service": "cd libraries/service && ./gradlew dokkaGenerate",
-      "doc:md": "pnpm run doc:md:client && pnpm run doc:md:service",
-      "copy-doc:md:client": "cp -r libraries/client/build/dokka/html/client/* libraries/client/docs",
-      "copy-doc:md:service": "cp -r libraries/service/build/dokka/html/service/* libraries/service/docs",
-      "copy-doc:md": "pnpm run copy-doc:md:client && pnpm run copy-doc:md:service",
-      "build:doc": "pnpm run doc:md && pnpm run copy-doc:md",
-
-      "test:runtime": "RUST_BACKTRACE=1 RUST_LOG=info cargo test -p holochain-conductor-runtime -- --nocapture",
-      "test:runtime-ffi": " RUST_BACKTRACE=1 RUST_LOG=info cargo test -p holochain-conductor-runtime-ffi -- --nocapture",
-      "test:tauri-plugin-holochain": "RUST_BACKTRACE=1 RUST_LOG=info cargo test -p tauri-plugin-holochain -- --nocapture",
-      "build:example": "npm --prefix apps/holochain-runtime-example/ui install && npm --prefix apps/holochain-runtime-example/ui run build",
-      "test:example": "pnpm run build:example && cargo build -p holochain-runtime-example",
-      "test:tauri-plugin": "pnpm run test:tauri-plugin-holochain && pnpm run test:example",
-      "test:service": "cd libraries/service && ./gradlew connectedDebugAndroidTest",
-      "test:client": "cd libraries/client && ./gradlew connectedDebugAndroidTest",
-      "test": " npm run test:runtime && pnpm run test:runtime-ffi && pnpm run test:tauri-plugin && pnpm run test:service && pnpm run test:client",
-
-      "start:example": "pnpm run build:example && cargo run -p holochain-runtime-example",
-      "start:example-android": "pnpm run build:example && pnpm run --dir apps/holochain-runtime-example start:android",
-      "start:example-ios": "pnpm run build:example && pnpm run --dir apps/holochain-runtime-example start:ios",
-      "start:android-service-runtime": "pnpm run --dir apps/android-service-runtime start:android",
-      "start:example-client-app": "pnpm run --dir apps/example-client-app start:android"
-    },
-    "dependencies": {
-      "tslib": "^2.7.0"
-    }
+    "lint": "cargo clippy --workspace --all-targets -- -Dwarnings",
+    "fmt": "cargo fmt --all"
+  },
+  "dependencies": {
+    "tslib": "^2.7.0"
+  }
 }
