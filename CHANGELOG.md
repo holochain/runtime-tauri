@@ -1,5 +1,11 @@
 # Unreleased
 
+- The repository's JavaScript tooling moves from pnpm to npm workspaces, matching
+  the npm/Yarn-classic tooling the rest of the Holochain app ecosystem uses. The
+  example UI, which was installed with `npm --prefix` outside the pnpm workspace
+  and had no committed lockfile, is now a workspace covered by the root
+  `package-lock.json`. The generated Android Gradle task and iOS Xcode build phase
+  invoke `npm run tauri -- …` instead of `pnpm tauri …`.
 - BREAKING: the plugin crate is renamed `tauri-plugin-holochain` → `tauri-plugin-hc`
   (the former name is reserved on crates.io by another owner), and its Tauri
   identifier follows: `holochain:default` → `hc:default`,

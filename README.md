@@ -37,15 +37,15 @@ The build needs a pinned Rust toolchain with the Android and iOS targets, the An
 
 ```sh
 nix develop
-pnpm install
+npm ci
 ```
 
 Run the example:
 
 ```sh
-pnpm start:example          # desktop
-pnpm start:example-android  # Android device or emulator
-pnpm start:example-ios      # iOS device or simulator (macOS host)
+npm run start:example          # desktop
+npm run start:example-android  # Android device or emulator
+npm run start:example-ios      # iOS device or simulator (macOS host)
 ```
 
 Run what CI runs — formatting, clippy, both test suites, and a build of the example:

@@ -29,7 +29,7 @@ the example app. The suites boot real conductors, so expect a few minutes.
 
 The example app's UI must be built before the Rust build will succeed — Tauri
 resolves `frontendDist` at compile time via `generate_context!`. `make test` and
-the `pnpm start:*` scripts do this for you; a bare `cargo build -p
+the `npm run start:*` scripts do this for you; a bare `cargo build -p
 holochain-runtime-example` will not.
 
 ## Releasing

@@ -6,7 +6,7 @@
   "build": {
     "frontendDist": "../ui/dist",
     "beforeDevCommand": "npm --prefix ui run dev",
-    "beforeBuildCommand": "npm --prefix ui install && npm --prefix ui run build"
+    "beforeBuildCommand": "npm --prefix ui run build"
   },
   "app": {
     "withGlobalTauri": true,

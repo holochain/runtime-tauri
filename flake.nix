@@ -86,7 +86,6 @@
               cargo-ndk # build Rust -> Android jniLibs
               cmake # aws-lc-sys (iroh/rustls crypto) builds its C sources with CMake
               nodejs_22
-              pnpm
               jdk17 # Gradle
               pkg-config
               binaryen # wasm-opt, for building hApp/zome wasm
