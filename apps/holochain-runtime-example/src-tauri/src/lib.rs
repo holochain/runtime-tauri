@@ -103,11 +103,16 @@ pub fn run() {
 async fn open_main_window(handle: AppHandle) -> Result<(), Box<dyn Error>> {
     let plugin = handle.holochain()?;
 
-    // Install + enable the forum hApp and ensure its app websocket exists.
-    plugin
-        .runtime()
-        .setup_app(
-            InstallAppPayload {
+    let runtime = plugin.runtime();
+
+    // Install and enable the forum hApp on first run only. An app that is
+    // already installed is left in whatever state it is in, so one a user
+    // disabled stays disabled. This deliberately avoids `Runtime::setup_app`,
+    // which also attaches an app websocket interface: the window below reaches
+    // the conductor over Tauri IPC, so that port would sit open and unused.
+    if !runtime.is_app_installed(APP_ID.into()).await? {
+        runtime
+            .install_app(InstallAppPayload {
                 source: AppBundleSource::Bytes(HAPP_BUNDLE.to_vec().into()),
                 agent_key: None,
                 installed_app_id: Some(APP_ID.into()),
@@ -115,12 +120,14 @@ async fn open_main_window(handle: AppHandle) -> Result<(), Box<dyn Error>> {
                 roles_settings: Some(HashMap::new()),
                 ignore_genesis_failure: false,
                 restore_from_dht: false,
-            },
-            true,
-        )
-        .await?;
+            })
+            .await?;
+        runtime.enable_app(APP_ID.into()).await?;
+    }
 
-    // Open the window wired to the conductor (injects __HC_LAUNCHER_ENV__).
+    // Open a window bound to the app. With `use_app_websocket` left at its
+    // default (false), the plugin injects `__HC_TAURI_HOLOCHAIN__` and serves
+    // the App API and zome-call signing over Tauri IPC.
     plugin
         .main_window_builder(
             "main",
