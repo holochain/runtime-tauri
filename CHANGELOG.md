@@ -1,5 +1,14 @@
 # Unreleased
 
+- BREAKING: the plugin crate is renamed `tauri-plugin-holochain` → `tauri-plugin-hc`
+  (the former name is reserved on crates.io by another owner), and its Tauri
+  identifier follows: `holochain:default` → `hc:default`,
+  `holochain:allow-sign-payload` → `hc:allow-sign-payload`, and commands are
+  invoked as `plugin:hc|…`. The identifier has to match the `links` key, which
+  `tauri-build` uses to name the plugin's permissions. Rust imports become
+  `tauri_plugin_hc::…`. The injected `__HC_TAURI_HOLOCHAIN__` env (whose
+  `PLUGIN_NAME` now carries `hc`, which `@holochain/client` reads) and the
+  `holochain://` event names are unchanged.
 - The repository is now scoped to the cross-platform Tauri runtime: the
   `holochain-conductor-runtime` crate, the in-process `tauri-plugin-holochain`,
   and the example app for desktop, Android and iOS. The Android

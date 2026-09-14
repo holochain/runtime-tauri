@@ -3,7 +3,7 @@
 //! It is intended to be a general-purpose wrapper for holochain runtime.
 //!
 //! It carries no host-framework or platform concerns: the Tauri integration
-//! lives in `tauri-plugin-holochain`, which is its only consumer here.
+//! lives in `tauri-plugin-hc`, which is its only consumer here.
 
 mod runtime;
 pub use runtime::*;

@@ -1,7 +1,7 @@
 {
-  "name": "tauri-plugin-holochain-api",
+  "name": "tauri-plugin-hc-api",
   "version": "0.1.0",
-  "description": "Webview env-injection script for tauri-plugin-holochain",
+  "description": "Webview env-injection script for tauri-plugin-hc",
   "type": "module",
   "files": [
     "dist-js",

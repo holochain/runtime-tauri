@@ -1,4 +1,4 @@
-# tauri-plugin-holochain
+# tauri-plugin-hc
 
 A Tauri plugin that runs a Holochain conductor **in-process** — no UniFFI, no Kotlin, no separate service, no cross-process IPC. One Rust binary, on desktop, Android and iOS.
 
@@ -14,7 +14,9 @@ It is built on [`holochain-conductor-runtime`](../runtime) and exposes it throug
 
 ## Permissions
 
-`holochain:default` grants `allow-sign-zome-call` and `allow-app-request`. `sign_payload` is deliberately outside it: `sign_zome_call` signs the hash of a well-formed `ZomeCallParams`, so what it produces is only usable as the call it describes, while `sign_payload` signs caller-chosen bytes with no such domain separation. A capability has to name `holochain:allow-sign-payload` itself.
+`hc:default` grants `allow-sign-zome-call` and `allow-app-request`. `sign_payload` is deliberately outside it: `sign_zome_call` signs the hash of a well-formed `ZomeCallParams`, so what it produces is only usable as the call it describes, while `sign_payload` signs caller-chosen bytes with no such domain separation. A capability has to name `hc:allow-sign-payload` itself.
+
+The plugin identifier `hc` is what goes in capability files and `plugin:hc|…` invokes. The webview-facing names are unchanged Holochain names rather than plugin names: the injected global is `__HC_TAURI_HOLOCHAIN__` (which `@holochain/client` looks for) and events use the `holochain://` scheme.
 
 ## Usage
 

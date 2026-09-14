@@ -1,4 +1,4 @@
-// Demo UI for the in-process tauri-plugin-holochain. Uses @holochain/client to
+// Demo UI for the in-process tauri-plugin-hc. Uses @holochain/client to
 // connect to the conductor the plugin injected into this webview, make signed
 // zome calls, and receive a signal. With the plugin's default direct mode this
 // all flows over Tauri IPC — no app websocket.

@@ -1,15 +1,17 @@
 //! A Tauri plugin that runs a Holochain conductor **in-process** — no UniFFI,
 //! no Kotlin, no separate Android service, no cross-process AIDL.
 //!
-//! It is built directly on [`holochain_conductor_runtime::Runtime`], the same
-//! pure-Rust conductor wrapper used by the FFI-based client/service plugins, and
-//! exposes it to a Tauri app via the [`HolochainExt`] trait. A webview opened
-//! with [`HolochainPlugin::main_window_builder`] is wired to the in-process
-//! conductor's app websocket so `@holochain/client` in the UI connects directly.
+//! It is built directly on [`holochain_conductor_runtime::Runtime`] and exposes
+//! it to a Tauri app via the [`HolochainExt`] trait. A webview opened with
+//! [`HolochainPlugin::main_window_builder`] is bound to an installed app and
+//! reaches the conductor over Tauri IPC, so `@holochain/client` in the UI needs
+//! no loopback websocket; [`WindowOptions`] can still select the app-websocket
+//! path per window.
 //!
-//! This is the single-binary alternative to the separated
-//! `tauri-plugin-holochain-service` (server) + `tauri-plugin-holochain-service-client`
-//! (client) pair; those remain supported for the cross-app Android model.
+//! The Tauri plugin identifier is `hc`: permissions are `hc:default` and
+//! `hc:allow-*`, and commands are invoked as `plugin:hc|<command>`. It has to
+//! match the crate's `links` key, which is where `tauri-build` derives the ACL
+//! name from.
 
 mod commands;
 mod error;
@@ -44,6 +46,13 @@ use tauri::{
     AppHandle, Emitter, Manager, RunEvent, Runtime as TauriRuntime, WebviewUrl,
     WebviewWindowBuilder, WindowEvent,
 };
+
+/// The Tauri plugin identifier: the ACL prefix in capability files (`hc:default`)
+/// and the `plugin:hc|<command>` invoke path. `tauri-build` derives the ACL name
+/// from the crate's `links` key, so this must stay equal to that key minus its
+/// `tauri-plugin-` prefix. It is also injected into each webview, whose zome-call
+/// signer and `@holochain/client` transport invoke commands through it.
+pub const PLUGIN_NAME: &str = "hc";
 
 /// Emitted on the app handle once the conductor is up and [`HolochainExt::holochain`]
 /// is ready to use.
@@ -466,8 +475,8 @@ impl<R: TauriRuntime> HolochainPlugin<R> {
                 .ensure_app_websocket(app_id.clone())
                 .await?;
             format!(
-                r#"window.injectHolochainClientEnv("{}", {}, {:?});"#,
-                app_id, app_auth.port, app_auth.authentication.token,
+                r#"window.injectHolochainClientEnv("{}", {}, {:?}, "{}");"#,
+                app_id, app_auth.port, app_auth.authentication.token, PLUGIN_NAME,
             )
         } else {
             // Direct: inject the IPC env (+ the rebound listener). If an app is
@@ -480,7 +489,7 @@ impl<R: TauriRuntime> HolochainPlugin<R> {
                     .await?;
             }
             let injected = app_id.unwrap_or_default();
-            format!(r#"window.injectHolochainTauriEnv({injected:?}, "holochain");"#)
+            format!(r#"window.injectHolochainTauriEnv({injected:?}, "{PLUGIN_NAME}");"#)
         };
 
         let mut window_builder = WebviewWindowBuilder::new(&self.app_handle, label, url)
@@ -562,7 +571,7 @@ fn plugin_builder<R: TauriRuntime>(
     config: HolochainPluginConfig,
     on_setup: impl Fn(&AppHandle<R>) + Send + Sync + 'static,
 ) -> TauriPlugin<R> {
-    Builder::new("holochain")
+    Builder::new(PLUGIN_NAME)
         .invoke_handler(tauri::generate_handler![
             commands::sign_zome_call,
             commands::sign_payload,

@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Capabilities for the main window",
   "windows": ["main"],
-  "permissions": ["core:default", "holochain:default"]
+  "permissions": ["core:default", "hc:default"]
 }

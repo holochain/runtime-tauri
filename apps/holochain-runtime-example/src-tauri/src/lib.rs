@@ -1,5 +1,5 @@
 //! Minimal example (desktop + Android) for the in-process
-//! `tauri-plugin-holochain`.
+//! `tauri-plugin-hc`.
 //!
 //! On startup it boots an in-process Holochain conductor (via the plugin),
 //! installs + enables the bundled `forum.happ` fixture, then opens a window
@@ -15,7 +15,7 @@ use holochain::prelude::{AppBundleSource, InstallAppPayload};
 #[cfg(mobile)]
 use tauri::Manager;
 use tauri::{AppHandle, Listener};
-use tauri_plugin_holochain::{
+use tauri_plugin_hc::{
     vec_to_locked, HolochainExt, HolochainPluginConfig, NetworkConfig, WindowOptions, EVENT_READY,
     EVENT_SETUP_FAILED,
 };
@@ -89,7 +89,7 @@ pub fn run() {
             // Registered here (not on the builder) because the mobile data dir
             // comes from the app's path resolver, which needs a live handle.
             let holochain_data_dir = data_dir(app.handle());
-            app.handle().plugin(tauri_plugin_holochain::init(
+            app.handle().plugin(tauri_plugin_hc::init(
                 vec_to_locked(vec![]),
                 HolochainPluginConfig::new(holochain_data_dir, NetworkConfig::default()),
             ))?;

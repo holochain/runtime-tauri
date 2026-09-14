@@ -5,7 +5,7 @@ A Tauri-based runtime for building Holochain apps that run on desktop, Android a
 An app built on it links a Holochain conductor directly into its own binary — one Rust process, no UniFFI, no Kotlin, no separate service, no cross-process IPC. The webview talks to the conductor over Tauri IPC, so `@holochain/client` in the UI works without a loopback websocket or an open admin port.
 
 ```
-your Tauri app → tauri-plugin-holochain → holochain-conductor-runtime → conductor
+your Tauri app → tauri-plugin-hc → holochain-conductor-runtime → conductor
 ```
 
 ## What's here
@@ -13,7 +13,7 @@ your Tauri app → tauri-plugin-holochain → holochain-conductor-runtime → co
 | Crate | |
 | --- | --- |
 | [holochain-conductor-runtime](./crates/runtime) | Framework-free wrapper around the Holochain conductor. Two-phase boot (lair first, then the conductor on that same keystore), app install/enable/disable/uninstall, app websockets, zome-call and payload signing, key generation and seed import/export, hc-auth, network stats. Talks to the conductor through `AdminInterfaceApi`/`AppInterfaceApi` in-process — it never opens an admin websocket. |
-| [tauri-plugin-holochain](./crates/tauri-plugin-holochain) | The Tauri integration, and the runtime's only consumer here. Boots the conductor, binds webview windows to installed apps, forwards signals, serves the App API over Tauri IPC, and signs zome calls for the UI. |
+| [tauri-plugin-hc](./crates/tauri-plugin-hc) | The Tauri integration, and the runtime's only consumer here. Boots the conductor, binds webview windows to installed apps, forwards signals, serves the App API over Tauri IPC, and signs zome calls for the UI. |
 
 [apps/holochain-runtime-example](./apps/holochain-runtime-example) is a working app for all three platforms: it boots a conductor, installs the bundled `forum.happ` fixture, and opens a window connected to it.
 

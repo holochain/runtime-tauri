@@ -14,4 +14,4 @@ What it covers:
 
 `handle_app_request` does not authorize anything: the caller is responsible for scoping the `installed_app_id` to what the requester may reach.
 
-Its consumer in this repo is [`tauri-plugin-holochain`](../tauri-plugin-holochain).
+Its consumer in this repo is [`tauri-plugin-hc`](../tauri-plugin-hc).

@@ -3349,7 +3349,7 @@ dependencies = [
  "log",
  "tauri",
  "tauri-build",
- "tauri-plugin-holochain",
+ "tauri-plugin-hc",
  "tauri-plugin-log",
 ]
 
@@ -8996,7 +8996,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "tauri-plugin-holochain"
+name = "tauri-plugin-hc"
 version = "0.3.0"
 dependencies = [
  "base64 0.22.1",
@@ -9009,7 +9009,7 @@ dependencies = [
  "sodoken",
  "tauri",
  "tauri-plugin",
- "tauri-plugin-holochain",
+ "tauri-plugin-hc",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",

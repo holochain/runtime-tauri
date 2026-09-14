@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "crates/runtime",
-    "crates/tauri-plugin-holochain",
+    "crates/tauri-plugin-hc",
     "apps/holochain-runtime-example/src-tauri",
 ]
 resolver = "2"

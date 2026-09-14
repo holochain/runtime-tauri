@@ -1,5 +1,5 @@
 /// Injects the env `@holochain/client` needs into a webview opened by
-/// `tauri-plugin-holochain`, plus a zome-call signer backed by the plugin's
+/// `tauri-plugin-hc`, plus a zome-call signer backed by the plugin's
 /// keystore. Two modes:
 ///   - injectHolochainClientEnv: legacy, connects to the in-process conductor's
 ///     app *websocket* (`__HC_LAUNCHER_ENV__`).
@@ -46,13 +46,18 @@ function makeZomeCallSigner(pluginName: string) {
 
 /// Legacy app-websocket wiring: `@holochain/client` dials `ws://localhost:<port>`
 /// and authenticates with the token.
-function injectHolochainClientEnv(installedAppId: string, port: number, token: Uint8Array) {
+function injectHolochainClientEnv(
+  installedAppId: string,
+  port: number,
+  token: Uint8Array,
+  pluginName: string,
+) {
   (window as any).__HC_LAUNCHER_ENV__ = {
     INSTALLED_APP_ID: installedAppId,
     APP_INTERFACE_PORT: port,
     APP_INTERFACE_TOKEN: token,
   };
-  (window as any).__HC_ZOME_CALL_SIGNER__ = makeZomeCallSigner('holochain');
+  (window as any).__HC_ZOME_CALL_SIGNER__ = makeZomeCallSigner(pluginName);
 }
 
 /// Direct Tauri-IPC wiring: `@holochain/client` routes the App API through the

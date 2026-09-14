@@ -1,7 +1,7 @@
 [package]
 name = "holochain-runtime-example"
 version = "0.1.0"
-description = "Desktop example exercising the in-process tauri-plugin-holochain"
+description = "Example app for the in-process tauri-plugin-hc (desktop, Android, iOS)"
 edition.workspace = true
 license.workspace = true
 
@@ -16,7 +16,7 @@ tauri-build = { workspace = true }
 tauri = { workspace = true }
 # The wasm backend (cranelift vs. wasmi on iOS) is selected by target cfg in
 # crates/runtime; no feature flags are needed at any build entry point.
-tauri-plugin-holochain = { path = "../../../crates/tauri-plugin-holochain" }
+tauri-plugin-hc = { path = "../../../crates/tauri-plugin-hc" }
 tauri-plugin-log = "2"
 holochain = { workspace = true, features = ["encryption", "schema"] }
 log = { workspace = true }

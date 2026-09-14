@@ -18,8 +18,8 @@ use holochain::prelude::{
 };
 use holochain_types::prelude::{AppStatus, Link, Nonce256Bits, Timestamp};
 use tauri::test::{mock_builder, mock_context, noop_assets};
-use tauri_plugin_holochain::test_support::{build_app, wait_for_ready, BOOT_TIMEOUT};
-use tauri_plugin_holochain::{Error, HolochainExt, HolochainPluginConfig, NetworkConfig};
+use tauri_plugin_hc::test_support::{build_app, wait_for_ready, BOOT_TIMEOUT};
+use tauri_plugin_hc::{Error, HolochainExt, HolochainPluginConfig, NetworkConfig};
 use tempfile::TempDir;
 use uuid::Uuid;
 
@@ -27,7 +27,7 @@ const HAPP_FIXTURE: &[u8] = include_bytes!("../../runtime/fixtures/forum.happ");
 const APP_ID: &str = "forum";
 
 async fn install_and_enable_forum(
-    runtime: &tauri_plugin_holochain::Runtime,
+    runtime: &tauri_plugin_hc::Runtime,
 ) -> holochain::conductor::api::AppInfo {
     let app_info = runtime
         .install_app(InstallAppPayload {
@@ -237,9 +237,10 @@ fn rebind_window_reroutes_app_request_in_place() {
 fn rebind_failed_spawn_keeps_prior_binding() {
     let tmp = TempDir::new().unwrap();
     let app = mock_builder()
-        .plugin(tauri_plugin_holochain::init_deferred(
-            HolochainPluginConfig::new(tmp.path().to_path_buf(), NetworkConfig::default()),
-        ))
+        .plugin(tauri_plugin_hc::init_deferred(HolochainPluginConfig::new(
+            tmp.path().to_path_buf(),
+            NetworkConfig::default(),
+        )))
         .build(mock_context(noop_assets()))
         .expect("failed to build mock tauri app");
     let plugin = app.holochain().unwrap();
@@ -269,9 +270,10 @@ fn rebind_failed_spawn_keeps_prior_binding() {
 fn unbind_drops_window_routing() {
     let tmp = TempDir::new().unwrap();
     let app = mock_builder()
-        .plugin(tauri_plugin_holochain::init_deferred(
-            HolochainPluginConfig::new(tmp.path().to_path_buf(), NetworkConfig::default()),
-        ))
+        .plugin(tauri_plugin_hc::init_deferred(HolochainPluginConfig::new(
+            tmp.path().to_path_buf(),
+            NetworkConfig::default(),
+        )))
         .build(mock_context(noop_assets()))
         .expect("failed to build mock tauri app");
     let plugin = app.holochain().unwrap();
@@ -297,8 +299,23 @@ fn shipped_bundle_matches_rebound_payload_shape() {
     let bundle = include_str!("../dist-js/holochain-env/index.min.js");
     assert!(
         bundle.contains("payload.app_id") && bundle.contains("payload.seq"),
-        "dist-js/holochain-env/index.min.js is stale — run `npm run build` in crates/tauri-plugin-holochain"
+        "dist-js/holochain-env/index.min.js is stale — run `npm run build` in crates/tauri-plugin-hc"
     );
+}
+
+/// Both injection modes must take the plugin identifier from the Rust side. A
+/// literal name baked into the bundle would make the zome-call signer invoke a
+/// plugin the ACL does not know — the legacy websocket path once hardcoded
+/// `"holochain"`, which broke silently when the identifier became `hc`.
+#[test]
+fn shipped_bundle_does_not_hardcode_a_plugin_name() {
+    let bundle = include_str!("../dist-js/holochain-env/index.min.js");
+    for literal in ["\"holochain\"", "'holochain'", "\"hc\"", "'hc'"] {
+        assert!(
+            !bundle.contains(literal),
+            "dist-js bundle hardcodes the plugin name {literal}; pass it in from PLUGIN_NAME"
+        );
+    }
 }
 
 /// A conductor that fails to boot has to say why: the plugin holds the setup

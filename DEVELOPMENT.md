@@ -24,7 +24,7 @@ every member re-adds `encryption` + `schema`.
 ## Testing
 
 `make test` is what CI runs: `cargo fmt --check`, `cargo clippy -Dwarnings`, the
-`holochain-conductor-runtime` and `tauri-plugin-holochain` suites, and a build of
+`holochain-conductor-runtime` and `tauri-plugin-hc` suites, and a build of
 the example app. The suites boot real conductors, so expect a few minutes.
 
 The example app's UI must be built before the Rust build will succeed — Tauri
@@ -35,7 +35,7 @@ holochain-runtime-example` will not.
 ## Releasing
 
 1. Bump the crate versions in `crates/runtime/Cargo.toml` and
-   `crates/tauri-plugin-holochain/Cargo.toml`, and the path-dependency version
+   `crates/tauri-plugin-hc/Cargo.toml`, and the path-dependency version
    the plugin declares for the runtime.
 2. Add a `CHANGELOG.md` entry.
 3. Create and push a git tag to trigger the release CI.

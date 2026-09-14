@@ -8,7 +8,7 @@ test: static integration-test
 
 integration-test:
 	RUST_BACKTRACE=1 RUST_LOG=info cargo test -p holochain-conductor-runtime -- --nocapture
-	RUST_BACKTRACE=1 RUST_LOG=info cargo test -p tauri-plugin-holochain -- --nocapture
+	RUST_BACKTRACE=1 RUST_LOG=info cargo test -p tauri-plugin-hc -- --nocapture
 	pnpm run test:example
 
 static: fmt lint
