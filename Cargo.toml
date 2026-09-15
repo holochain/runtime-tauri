@@ -43,3 +43,11 @@ zeroize = "1.8.1"
 tempfile = "3.17.1"
 tokio = "1.43.0"
 uuid = "1.15.1"
+
+# Optimize dependencies in dev and test builds. Unoptimized, the conductor,
+# wasmer/cranelift and lair are an order of magnitude slower: a new cell's first
+# zome call (wasm compile + init) measured 29.6 s vs 2.9 s, conductor boot 19.7 s
+# vs 1.7 s. Workspace crates stay unoptimized so editing them rebuilds quickly.
+# Apps using tauri-plugin-hc need the same setting in their own workspace root.
+[profile.dev.package."*"]
+opt-level = 3

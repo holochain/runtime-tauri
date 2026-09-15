@@ -1,5 +1,9 @@
 # Unreleased
 
+- Dev and test builds optimize dependencies (`[profile.dev.package."*"] opt-level = 3`
+  in the workspace root). Unoptimized, a new cell's first zome call took ~30 s and
+  conductor boot ~20 s; optimized, ~3 s and under 2 s. The plugin README tells app
+  developers to set the same, since profiles only apply in a workspace root.
 - The repository's JavaScript tooling moves from pnpm to npm workspaces, matching
   the npm/Yarn-classic tooling the rest of the Holochain app ecosystem uses. The
   example UI, which was installed with `npm --prefix` outside the pnpm workspace

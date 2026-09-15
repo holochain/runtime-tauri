@@ -18,6 +18,22 @@ It is built on [`holochain-conductor-runtime`](../runtime) and exposes it throug
 
 The plugin identifier `hc` is what goes in capability files and `plugin:hc|…` invokes. The webview-facing names are unchanged Holochain names rather than plugin names: the injected global is `__HC_TAURI_HOLOCHAIN__` (which `@holochain/client` looks for) and events use the `holochain://` scheme.
 
+## Build profile
+
+Add this to your app's workspace root `Cargo.toml` (profiles set in a member crate
+are ignored):
+
+```toml
+[profile.dev.package."*"]
+opt-level = 3
+```
+
+Without it, `tauri dev` runs the conductor, wasmer/cranelift and lair unoptimized.
+A new cell's first zome call, which compiles the zomes and runs `init()`, then
+takes around 30 s instead of about 3 s, and conductor boot around 20 s instead of
+under 2 s. Your own crate stays unoptimized, so rebuilds after editing it are
+still fast.
+
 ## Usage
 
 See [apps/holochain-runtime-example](../../apps/holochain-runtime-example) for a complete app covering all three platforms.

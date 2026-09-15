@@ -21,6 +21,18 @@ feature-based default would silently link the JIT into the iOS binary. This is
 why `holochain` is declared `default-features = false` at the workspace root and
 every member re-adds `encryption` + `schema`.
 
+## Dev builds are optimized for dependencies
+
+The root `Cargo.toml` sets `[profile.dev.package."*"] opt-level = 3`. Without it
+the conductor, wasmer/cranelift and lair run unoptimized in dev and test builds,
+and a new cell's first zome call (wasm compile plus `init()`) takes around 30 s
+instead of about 3 s; conductor boot goes from under 2 s to about 20 s. Only
+dependencies are optimized, so rebuilding after editing a workspace crate stays
+fast. The first build after a clean takes several minutes longer.
+
+Profiles only take effect in a workspace root, so every app that depends on
+`tauri-plugin-hc` has to set this itself; the plugin README says so.
+
 ## Testing
 
 `make test` is what CI runs: `cargo fmt --check`, `cargo clippy -Dwarnings`, the
