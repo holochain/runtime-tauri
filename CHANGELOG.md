@@ -1,5 +1,11 @@
 # Unreleased
 
+- Android: `tauri-plugin-hc` initializes `ndk_context` in `JNI_OnLoad` with the
+  process's `Application`. tao 0.35 (Tauri 2.11) stopped doing this, so the first
+  `ndk_context::android_context()` call panicked and the app aborted on launch;
+  `app_dirs2`, iroh's DNS resolver and `netdev` all make that call. An app that
+  defines its own `JNI_OnLoad` will now fail to link and should initialize
+  `ndk_context` from it instead.
 - Dev builds drop dependency debug info (`debug = false` beside `opt-level = 3`).
   An Android debug library was ~1.3 GB, 1.18 GB of it DWARF, and failed to
   install on an emulator. The plugin README's recommended block includes it.

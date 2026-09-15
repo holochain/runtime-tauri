@@ -26,6 +26,12 @@ log = { workspace = true }
 tokio = { workspace = true }
 base64 = { workspace = true }
 
+# Android: initialize ndk_context at library load (see src/android.rs). Same
+# versions tao/wry already pull in, so no extra copies.
+[target.'cfg(target_os = "android")'.dependencies]
+jni = "0.21"
+ndk-context = "0.1.1"
+
 [features]
 test-utils = ["tauri/test"]
 

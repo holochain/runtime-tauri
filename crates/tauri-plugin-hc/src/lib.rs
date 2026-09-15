@@ -13,6 +13,8 @@
 //! match the crate's `links` key, which is where `tauri-build` derives the ACL
 //! name from.
 
+#[cfg(target_os = "android")]
+mod android;
 mod commands;
 mod error;
 
