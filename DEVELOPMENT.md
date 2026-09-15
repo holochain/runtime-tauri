@@ -23,7 +23,9 @@ every member re-adds `encryption` + `schema`.
 
 ## Dev builds are optimized for dependencies
 
-The root `Cargo.toml` sets `[profile.dev.package."*"] opt-level = 3`. Without it
+The root `Cargo.toml` sets `[profile.dev.package."*"] opt-level = 3` and
+`debug = false`. The second keeps Android debug libraries installable: with
+dependency debug info they are around 1.3 GB, almost all of it DWARF. Without it
 the conductor, wasmer/cranelift and lair run unoptimized in dev and test builds,
 and a new cell's first zome call (wasm compile plus `init()`) takes around 30 s
 instead of about 3 s; conductor boot goes from under 2 s to about 20 s. Only

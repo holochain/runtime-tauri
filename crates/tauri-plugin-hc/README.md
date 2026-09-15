@@ -26,6 +26,7 @@ are ignored):
 ```toml
 [profile.dev.package."*"]
 opt-level = 3
+debug = false
 ```
 
 Without it, `tauri dev` runs the conductor, wasmer/cranelift and lair unoptimized.
@@ -33,6 +34,11 @@ A new cell's first zome call, which compiles the zomes and runs `init()`, then
 takes around 30 s instead of about 3 s, and conductor boot around 20 s instead of
 under 2 s. Your own crate stays unoptimized, so rebuilds after editing it are
 still fast.
+
+`debug = false` matters on Android: with dependency debug info, the debug native
+library is about 1.3 GB (1.18 GB of it DWARF) and fails to install on an emulator
+with `INSTALL_FAILED_INSUFFICIENT_STORAGE`. Dependency symbols are kept, so
+backtraces still show function names.
 
 ## Usage
 

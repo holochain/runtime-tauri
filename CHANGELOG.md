@@ -1,5 +1,8 @@
 # Unreleased
 
+- Dev builds drop dependency debug info (`debug = false` beside `opt-level = 3`).
+  An Android debug library was ~1.3 GB, 1.18 GB of it DWARF, and failed to
+  install on an emulator. The plugin README's recommended block includes it.
 - Dev and test builds optimize dependencies (`[profile.dev.package."*"] opt-level = 3`
   in the workspace root). Unoptimized, a new cell's first zome call took ~30 s and
   conductor boot ~20 s; optimized, ~3 s and under 2 s. The plugin README tells app
