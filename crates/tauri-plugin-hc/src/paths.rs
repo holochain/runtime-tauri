@@ -28,7 +28,8 @@ pub struct AppPaths {
 ///   its own conductor and settings. The lock is held until the process exits.
 ///
 /// `author` is only used on Windows, where it is a path component; pass
-/// `env!("CARGO_PKG_AUTHORS")` to match earlier releases of an app.
+/// `env!("CARGO_PKG_AUTHORS")` to match earlier releases of an app. If it is
+/// empty, as it is for a crate with no `authors`, `app_name` is used instead.
 ///
 /// Call it once, before building the Tauri app: in dev every call takes another
 /// instance slot.
@@ -38,6 +39,8 @@ pub fn app_paths(app_name: &'static str, author: &'static str) -> Result<AppPath
     } else {
         app_dirs2::AppDataType::UserData
     };
+    // app_dirs2 rejects an empty author.
+    let author = if author.is_empty() { app_name } else { author };
     let root = app_dirs2::app_root(
         data_type,
         &app_dirs2::AppInfo {
