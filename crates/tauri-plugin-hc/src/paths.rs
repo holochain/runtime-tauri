@@ -94,6 +94,11 @@ fn try_lock_dir(dir: &Path) -> Result<Option<File>> {
     match file.try_lock() {
         Ok(()) => Ok(Some(file)),
         Err(TryLockError::WouldBlock) => Ok(None),
+        // std has no file locking on some targets, Android among them. Only one
+        // copy of a mobile app runs at a time, so the first slot is free.
+        Err(TryLockError::Error(e)) if e.kind() == std::io::ErrorKind::Unsupported => {
+            Ok(Some(file))
+        }
         Err(TryLockError::Error(e)) => Err(io(e)),
     }
 }
