@@ -1,5 +1,7 @@
 use crate::hc_auth::{self, HcAuthConfig, HcAuthStatus};
-use crate::{AppAuth, RuntimeConfig, RuntimeError, RuntimeResult, DEVICE_SEED_LAIR_TAG};
+use crate::{
+    AppAuth, AppInstallOutcome, RuntimeConfig, RuntimeError, RuntimeResult, DEVICE_SEED_LAIR_TAG,
+};
 use holochain::conductor::api::IssueAppAuthenticationTokenPayload;
 use holochain::conductor::api::{AppAuthenticationTokenIssued, ZomeCallParamsSigned};
 use holochain::{
@@ -721,19 +723,43 @@ impl Runtime {
             .clone()
             .ok_or(RuntimeError::InstalledAppIdNotSpecified)?;
 
+        self.install_app_if_missing(payload, enable_after_install)
+            .await?;
+
+        self.ensure_app_websocket(installed_app_id).await
+    }
+
+    /// Install the app in `payload` unless an app with its `installed_app_id` is
+    /// already installed, and enable it after a fresh install if
+    /// `enable_after_install` is set.
+    ///
+    /// An app that is already installed is left as it is, including when it is
+    /// disabled: that is assumed to have been done deliberately, and is not
+    /// overridden. This is [`Self::setup_app`] without the app websocket, for apps
+    /// whose UI reaches the conductor over in-process IPC.
+    pub async fn install_app_if_missing(
+        &self,
+        payload: InstallAppPayload,
+        enable_after_install: bool,
+    ) -> RuntimeResult<AppInstallOutcome> {
+        let installed_app_id = payload
+            .installed_app_id
+            .clone()
+            .ok_or(RuntimeError::InstalledAppIdNotSpecified)?;
+
         if self.is_app_installed(installed_app_id.clone()).await? {
             debug!(
                 "App {} is already installed, skipping install and enable",
-                installed_app_id.clone()
+                installed_app_id
             );
-        } else {
-            let _ = self.install_app(payload).await?;
-            if enable_after_install {
-                let _ = self.enable_app(installed_app_id.clone()).await?;
-            }
+            return Ok(AppInstallOutcome::AlreadyInstalled);
         }
 
-        self.ensure_app_websocket(installed_app_id).await
+        let app_info = self.install_app(payload).await?;
+        if enable_after_install {
+            self.enable_app(installed_app_id).await?;
+        }
+        Ok(AppInstallOutcome::Installed(Box::new(app_info)))
     }
 
     /// Dispatch an [`AppRequest`] for `installed_app_id` against the in-process
