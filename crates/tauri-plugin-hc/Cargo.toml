@@ -32,6 +32,11 @@ base64 = { workspace = true }
 jni = "0.21"
 ndk-context = "0.1.1"
 
+# Linux: answer WebKitGTK's permission-request signal so getUserMedia works
+# (see src/linux_media.rs). Same version and features tauri itself uses.
+[target.'cfg(target_os = "linux")'.dependencies]
+webkit2gtk = { version = "2", features = ["v2_40"] }
+
 [features]
 test-utils = ["tauri/test"]
 

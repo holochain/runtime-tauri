@@ -17,6 +17,8 @@
 mod android;
 mod commands;
 mod error;
+#[cfg(target_os = "linux")]
+mod linux_media;
 
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_support;
@@ -591,6 +593,14 @@ fn plugin_builder<R: TauriRuntime>(
             });
             on_setup(app);
             Ok(())
+        })
+        // Linux: WebKitGTK denies camera/microphone access unless the embedder
+        // answers its permission-request signal (see linux_media.rs).
+        .on_webview_ready(|webview| {
+            #[cfg(target_os = "linux")]
+            linux_media::allow_media_capture(&webview);
+            #[cfg(not(target_os = "linux"))]
+            let _ = webview;
         })
         // Prune a window's routing + signal forwarder when it is destroyed, so
         // the maps don't grow unbounded and a closed window's forwarder task is

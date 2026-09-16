@@ -9016,6 +9016,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "uuid",
+ "webkit2gtk",
 ]
 
 [[package]]

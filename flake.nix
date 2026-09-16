@@ -60,6 +60,13 @@
           # for the desktop-first unified plugin work; harmless for Android builds.
           tauriDeps = with pkgs; [
             webkitgtk_4_1
+            # Camera/microphone capture for getUserMedia in the nix webkit. Its
+            # GStreamer closure only carries the core and base plugin sets, so
+            # it enumerates zero capture devices and getUserMedia fails with
+            # OverconstrainedError ("Invalid constraint"). gst-plugins-good
+            # supplies the video4linux2 device provider; see GST_PLUGIN_PATH_1_0
+            # in tauriShellHook for how the webkit finds it.
+            gst_all_1.gst-plugins-good
             gtk3
             gdk-pixbuf
             glib
@@ -94,6 +101,13 @@
             # purpose: GIO_MODULE_DIR would override the module search path for
             # every GLib app launched from this shell.
             export GIO_EXTRA_MODULES=${pkgs.glib-networking}/lib/gio/modules
+            # GStreamer plugins for the nix webkit's media capture (see
+            # gst-plugins-good in tauriDeps). The nix gstreamer has no plugin
+            # search path of its own beyond its core elements, so list every
+            # plugin set explicitly. GST_PLUGIN_PATH_1_0 is additive, like
+            # GIO_EXTRA_MODULES above: GST_PLUGIN_SYSTEM_PATH_1_0 would replace
+            # the search path for host GStreamer apps launched from this shell.
+            export GST_PLUGIN_PATH_1_0=${pkgs.gst_all_1.gstreamer.out}/lib/gstreamer-1.0:${pkgs.gst_all_1.gst-plugins-base}/lib/gstreamer-1.0:${pkgs.gst_all_1.gst-plugins-good}/lib/gstreamer-1.0''${GST_PLUGIN_PATH_1_0:+:$GST_PLUGIN_PATH_1_0}
             # webkitgtk >= 2.44 requires a working EGL display in its web process
             # (DMA-BUF renderer + Skia) and aborts with EGL_BAD_PARAMETER without
             # one. nixpkgs' libglvnd only searches /run/opengl-driver for EGL

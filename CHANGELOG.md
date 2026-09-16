@@ -1,5 +1,13 @@
 # Unreleased
 
+- Linux: `tauri-plugin-hc` grants WebKitGTK user-media permission requests on
+  every webview it sees, so a hApp UI can call `getUserMedia` (camera and
+  microphone) on Linux as it already could on Android. WebKitGTK denies these
+  unless the embedder answers its `permission-request` signal, and neither wry
+  nor Tauri does. The dev shell also adds `gst-plugins-good` and exports
+  `GST_PLUGIN_PATH_1_0`: the nix webkit's own GStreamer closure carries no
+  capture device provider, so it enumerated zero cameras and `getUserMedia`
+  failed with `OverconstrainedError: Invalid constraint` whatever the constraints.
 - Android: `tauri-plugin-hc` initializes `ndk_context` in `JNI_OnLoad` with the
   process's `Application`. tao 0.35 (Tauri 2.11) stopped doing this, so the first
   `ndk_context::android_context()` call panicked and the app aborted on launch;
