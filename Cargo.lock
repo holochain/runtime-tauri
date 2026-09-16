@@ -3331,7 +3331,7 @@ dependencies = [
 
 [[package]]
 name = "holochain-conductor-runtime"
-version = "0.3.0"
+version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
  "holochain",
@@ -9009,7 +9009,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-hc"
-version = "0.3.0"
+version = "0.1.0"
 dependencies = [
  "app_dirs2",
  "base64 0.22.1",

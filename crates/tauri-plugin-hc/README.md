@@ -1,6 +1,6 @@
 # tauri-plugin-hc
 
-A Tauri plugin that runs a Holochain conductor **in-process** — no UniFFI, no Kotlin, no separate service, no cross-process IPC. One Rust binary, on desktop, Android and iOS.
+A Tauri plugin that runs a Holochain conductor **in-process** — no separate service, no cross-process IPC. One Rust binary, on desktop, Android and iOS.
 
 It is built on [`holochain-conductor-runtime`](../runtime) and exposes it through the `HolochainExt` trait on Tauri's `App`, `AppHandle` and `Window`.
 

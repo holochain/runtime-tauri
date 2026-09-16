@@ -1,5 +1,5 @@
-//! A Tauri plugin that runs a Holochain conductor **in-process** — no UniFFI,
-//! no Kotlin, no separate Android service, no cross-process AIDL.
+//! A Tauri plugin that runs a Holochain conductor **in-process**, with no
+//! separate service and no cross-process IPC.
 //!
 //! It is built directly on [`holochain_conductor_runtime::Runtime`] and exposes
 //! it to a Tauri app via the [`HolochainExt`] trait. A webview opened with

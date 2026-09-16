@@ -1,6 +1,6 @@
 [package]
 name = "tauri-plugin-hc"
-version = "0.3.0"
+version = "0.1.0"
 exclude = ["/examples", "/node_modules"]
 links = "tauri-plugin-hc"
 description = "Tauri plugin that runs an in-process Holochain conductor (FFI-free, desktop + mobile)"
@@ -15,7 +15,7 @@ license.workspace = true
 [dependencies]
 # The wasm backend (cranelift vs. wasmi on iOS) is selected by target cfg in
 # holochain-conductor-runtime's Cargo.toml and unifies across the graph.
-holochain-conductor-runtime = { path = "../runtime", version = "0.3.0" }
+holochain-conductor-runtime = { path = "../runtime", version = "0.1.0" }
 holochain = { workspace = true, features = ["encryption", "schema"] }
 lair_keystore_api = { workspace = true }
 sodoken = { workspace = true }

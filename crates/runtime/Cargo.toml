@@ -1,6 +1,6 @@
 [package]
 name = "holochain-conductor-runtime"
-version = "0.3.0"
+version = "0.1.0"
 description = "Framework-free wrapper around the Holochain conductor, called in-process"
 readme = "README.md"
 authors.workspace = true

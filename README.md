@@ -2,7 +2,7 @@
 
 A Tauri-based runtime for building Holochain apps that run on desktop, Android and iOS from one codebase.
 
-An app built on it links a Holochain conductor directly into its own binary — one Rust process, no UniFFI, no Kotlin, no separate service, no cross-process IPC. The webview talks to the conductor over Tauri IPC, so `@holochain/client` in the UI works without a loopback websocket or an open admin port.
+An app built on it links a Holochain conductor directly into its own binary — one Rust process, with no separate service and no cross-process IPC. The webview talks to the conductor over Tauri IPC, so `@holochain/client` in the UI works without a loopback websocket or an open admin port.
 
 ```
 your Tauri app → tauri-plugin-hc → holochain-conductor-runtime → conductor
@@ -24,7 +24,7 @@ The plugin injects a `__HC_TAURI_HOLOCHAIN__` env into each window it opens. The
 | | Status |
 | --- | --- |
 | Desktop (Linux, macOS, Windows) | Supported. Tests run here. |
-| Android | Supported. Runs in-process, no foreground service involved. |
+| Android | Supported. |
 | iOS | Builds and runs — with one unreleased dependency, see below. |
 
 iOS was verified end to end on an iPhone 12 mini (iOS 18.7.8) and an iPhone 17 Pro simulator: conductor boot, hApp install, zome call, signing, and an app signal, persisting across restarts. It needs holochain's in-process lair keystore to stop binding a unix socket — an iOS app-container path blows past the ~104-byte `AF_UNIX` limit. That change is **not upstream yet**, so iOS will not boot against released holochain 0.7.0. See [docs/ios-test-build-plan.md](./docs/ios-test-build-plan.md) §4.0 and "Upstream issues to file → A".
@@ -54,9 +54,9 @@ Run what CI runs — formatting, clippy, both test suites, and a build of the ex
 make test
 ```
 
-## Android's shared-conductor model
+## Origins
 
-A separate deployment model exists for Android, where one app runs the conductor as a foreground service and other apps reach it over AIDL/Binder, so the device stays a reliable peer for every hApp installed on it. That stack — the service and client Tauri plugins, the UniFFI bindings, and the Kotlin libraries — lives in [holochain/android-service-runtime](https://github.com/holochain/android-service-runtime) and is not part of this repo.
+runtime-tauri grew out of [holochain/android-service-runtime](https://github.com/holochain/android-service-runtime), whose history it keeps.
 
 ## Development
 

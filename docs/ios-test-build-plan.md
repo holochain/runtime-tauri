@@ -1,7 +1,7 @@
 # iOS test build plan
 
 Target: an `ios` branch off `main-0.7` where `holochain-runtime-example` (the
-unified in-process `tauri-plugin-holochain` app) builds and runs on the iOS
+in-process `tauri-plugin-hc` app) builds and runs on the iOS
 simulator, and ideally on a device. This is a test build — proving the stack
 compiles, the conductor boots, and zome calls execute — not a shippable app.
 
@@ -102,12 +102,6 @@ construction. It compiles, but the conductor cannot boot from that path at all
 — see §4.0. `data_dir()` now has three mobile arms: `target_os = "android"`,
 iOS-device, and iOS-simulator (split on `target_abi = "sim"`, because the
 simulator's container path is 70 bytes longer than a device's).
-
-Scope: **unified plugin only.** `tauri-plugin-service` / `tauri-plugin-client`
-declare `.ios_path("ios")` for directories that don't exist and reference Swift
-bindings that were never written; they are Android-service-specific (iOS has no
-foreground-service equivalent anyway) and are not in the example app's
-dependency graph. They stay out of any iOS build.
 
 ## Phase 1 — wasm backend selection (done, but not as a feature pair)
 
