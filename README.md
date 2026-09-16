@@ -15,6 +15,8 @@ your Tauri app → tauri-plugin-hc → holochain-conductor-runtime → conductor
 | [holochain-conductor-runtime](./crates/runtime) | Framework-free wrapper around the Holochain conductor. Two-phase boot (lair first, then the conductor on that same keystore), app install/enable/disable/uninstall, app websockets, zome-call and payload signing, key generation and seed import/export, hc-auth, network stats. Talks to the conductor through `AdminInterfaceApi`/`AppInterfaceApi` in-process — it never opens an admin websocket. |
 | [tauri-plugin-hc](./crates/tauri-plugin-hc) | The Tauri integration, and the runtime's only consumer here. Boots the conductor, binds webview windows to installed apps, forwards signals, serves the App API over Tauri IPC, and signs zome calls for the UI. |
 
+[create-holochain-tauri](./packages/create-holochain-tauri) adds a desktop and Android app built on the plugin to an existing hApp repository, such as one from `hc-scaffold`: `npm create holochain-tauri`.
+
 [apps/holochain-runtime-example](./apps/holochain-runtime-example) is a working app for all three platforms: it boots a conductor, installs the bundled `forum.happ` fixture, and opens a window connected to it.
 
 The plugin injects a `__HC_TAURI_HOLOCHAIN__` env into each window it opens. The UI reads it and connects with `@holochain/client` over Tauri IPC; the older loopback-app-websocket path is still selectable per window.
@@ -48,7 +50,7 @@ npm run start:example-android  # Android device or emulator
 npm run start:example-ios      # iOS device or simulator (macOS host)
 ```
 
-Run what CI runs — formatting, clippy, both test suites, and a build of the example:
+Run what CI runs — formatting, clippy, the runtime, plugin and generator test suites, and a build of the example:
 
 ```sh
 make test

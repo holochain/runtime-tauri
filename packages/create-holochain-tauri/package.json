@@ -1,0 +1,26 @@
+{
+  "name": "create-holochain-tauri",
+  "version": "0.1.0",
+  "description": "Add a Tauri desktop and Android app to a Holochain hApp repository",
+  "type": "module",
+  "bin": {
+    "create-holochain-tauri": "bin/create-holochain-tauri.js"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "templates"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/holochain/runtime-tauri.git",
+    "directory": "packages/create-holochain-tauri"
+  },
+  "license": "MIT OR Apache-2.0"
+}

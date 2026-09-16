@@ -4,7 +4,8 @@
   "workspaces": [
     "crates/tauri-plugin-hc",
     "apps/holochain-runtime-example",
-    "apps/holochain-runtime-example/ui"
+    "apps/holochain-runtime-example/ui",
+    "packages/create-holochain-tauri"
   ],
   "scripts": {
     "build:plugin-js": "npm run build -w crates/tauri-plugin-hc",
@@ -20,7 +21,8 @@
     "test:runtime": "RUST_BACKTRACE=1 RUST_LOG=info cargo test -p holochain-conductor-runtime -- --nocapture",
     "test:tauri-plugin-hc": "RUST_BACKTRACE=1 RUST_LOG=info cargo test -p tauri-plugin-hc -- --nocapture",
     "test:example": "npm run build:example && cargo build -p holochain-runtime-example",
-    "test": "npm run test:runtime && npm run test:tauri-plugin-hc && npm run test:example",
+    "test:create": "npm test -w packages/create-holochain-tauri",
+    "test": "npm run test:runtime && npm run test:tauri-plugin-hc && npm run test:example && npm run test:create",
 
     "lint": "cargo clippy --workspace --all-targets -- -Dwarnings",
     "fmt": "cargo fmt --all"

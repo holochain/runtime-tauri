@@ -1,6 +1,6 @@
 # App generator and startup helpers plan
 
-Status: decided. The startup helpers (§4.2) are built; the generator is not. Read
+Status: decided. The startup helpers (§4.2) are built; the generator has a first `init`. Read
 this whole document before writing code.
 
 Decisions:
@@ -269,7 +269,12 @@ Every item below cost real debugging time. Encode each one; do not rediscover th
    `lib.rs` to them.~~ Done.
 3. `packages/create-holochain-tauri` (§5), using Emergence's files as the golden output.
    Its CI test: generate into a fresh `hc-scaffold` example hApp and into a copy of
-   Emergence, then build desktop and Android.
+   Emergence, then build desktop and Android. First version done: `init` for
+   `hc-scaffold` apps (src-tauri, scripts, dev shells), unit-tested against the
+   scaffold's files. Run by hand on a fresh `hc-scaffold` forum: the generated dev shell
+   builds the hApp and the desktop app, `start:tauri` boots two agents that each
+   install the hApp, and `tauri android init` generates the Android project. Still to
+   do: `update`, CI workflows, `gen/apple`, the CI test, and an Android device run.
 4. Port kando with the generator; the diff against Emergence's shell should shrink to
    app-owned files.
 

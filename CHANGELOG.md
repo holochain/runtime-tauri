@@ -1,5 +1,11 @@
 # Unreleased
 
+- `create-holochain-tauri` (`npm create holochain-tauri`) adds a desktop and Android
+  app to an hApp repository: `src-tauri/` using the startup helpers, `package.json`
+  scripts for desktop and Android agents on a local dev network, and dev shells on
+  runtime-tauri's. It rewrites `flake.nix` only when it is `hc-scaffold`'s and
+  otherwise leaves it for the manual steps in its README. `init` only; no `update`
+  yet.
 - Startup helpers, extracted from Emergence so each app stops carrying its own
   copy: `tauri_plugin_hc::app_paths` (production and per-dev-instance data
   directories), `UserNetworkConfig` with the `get_`/`default_`/`set_user_network_config`

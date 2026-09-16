@@ -10,6 +10,7 @@ integration-test:
 	RUST_BACKTRACE=1 RUST_LOG=info cargo test -p holochain-conductor-runtime -- --nocapture
 	RUST_BACKTRACE=1 RUST_LOG=info cargo test -p tauri-plugin-hc -- --nocapture
 	npm run test:example
+	npm run test:create
 
 static: fmt lint
 	@if [ "${CI}x" != "x" ]; then git diff --exit-code; fi

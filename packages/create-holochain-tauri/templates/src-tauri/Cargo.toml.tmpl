@@ -1,0 +1,35 @@
+[package]
+name = "{{crateName}}"
+version = "{{version}}"
+description = "{{productName}}"
+edition = "2021"
+
+[lib]
+name = "{{libName}}"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-hc = {{pluginDependency}}
+# default-features = false keeps the cranelift JIT out of iOS builds; the wasm
+# backend is chosen per target by holochain-conductor-runtime.
+holochain = { version = "0.7.0", default-features = false, features = ["encryption", "schema"] }
+anyhow = "1"
+
+# Optimize dependencies in dev builds. Unoptimized, conductor boot takes ~20 s and a
+# new cell's first zome call ~30 s. debug = false keeps the Android debug library
+# small enough to install (~270 MB instead of ~1.3 GB).
+[profile.dev.package."*"]
+opt-level = 3
+debug = false
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+
+# Its own workspace, separate from the zomes' (which build for wasm32).
+[workspace]
