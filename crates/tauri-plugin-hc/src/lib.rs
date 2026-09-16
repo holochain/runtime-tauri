@@ -16,6 +16,7 @@
 #[cfg(target_os = "android")]
 mod android;
 mod commands;
+mod dev_network;
 mod error;
 #[cfg(target_os = "linux")]
 mod linux_media;
@@ -23,6 +24,7 @@ mod linux_media;
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_support;
 
+pub use dev_network::{dev_network_config, DEV_INITIATE_BURST_FACTOR};
 pub use error::{Error, Result};
 
 // Re-export the native config type consumers build, and the runtime itself.

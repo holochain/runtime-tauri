@@ -9008,6 +9008,7 @@ dependencies = [
  "log",
  "ndk-context",
  "serde",
+ "serde_json",
  "sodoken",
  "tauri",
  "tauri-plugin",
@@ -9015,6 +9016,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
+ "url2",
  "uuid",
  "webkit2gtk",
 ]

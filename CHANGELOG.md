@@ -1,5 +1,13 @@
 # Unreleased
 
+- `tauri-plugin-hc` adds `dev_network_config(url)` and `dev_network_url!()` for
+  local dev networks: one `kitsune2-bootstrap-srv` as bootstrap server and iroh
+  relay, plain-HTTP relay allowed, and kitsune2's gossip `initiateBurstFactor`
+  raised from 3 to 100. With the default, a phone agent dropped a desktop
+  agent's gossip rounds as over the limit and new data took minutes to arrive;
+  with 100 there were no drops and a fresh phone agent synced in about 90 s.
+  `dev_network_url!()` reads `INTERNAL_IP`/`BOOTSTRAP_PORT` at run time on desktop
+  and at compile time on mobile.
 - Linux: `tauri-plugin-hc` grants WebKitGTK user-media permission requests on
   every webview it sees, so a hApp UI can call `getUserMedia` (camera and
   microphone) on Linux as it already could on Android. WebKitGTK denies these

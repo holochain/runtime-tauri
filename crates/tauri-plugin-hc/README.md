@@ -40,6 +40,38 @@ library is about 1.3 GB (1.18 GB of it DWARF) and fails to install on an emulato
 with `INSTALL_FAILED_INSUFFICIENT_STORAGE`. Dependency symbols are kept, so
 backtraces still show function names.
 
+## Local development network
+
+For dev builds, point every agent at one `kitsune2-bootstrap-srv` on your machine
+(the `tauriDev` shell provides it) instead of the public bootstrap and relay
+servers:
+
+```rust
+let network = if tauri::is_dev() {
+    tauri_plugin_hc::dev_network_config(&tauri_plugin_hc::dev_network_url!())
+} else {
+    NetworkConfig::default()
+};
+```
+
+Run the server with `kitsune2-bootstrap-srv --listen 0.0.0.0:$BOOTSTRAP_PORT`, and
+when a phone or emulator joins, set `INTERNAL_IP` to your machine's LAN address
+before building both the desktop and the mobile app.
+
+`dev_network_url!()` builds `http://<INTERNAL_IP>:<BOOTSTRAP_PORT>`. Desktop reads
+the variables at run time; Android and iOS bake them in at compile time, since the
+app runs on another device. Every agent must get the same URL, because kitsune2
+refuses peers on a relay it doesn't know, so a desktop on `127.0.0.1` can't reach a
+phone on the LAN address.
+
+`dev_network_config` uses that URL for both the bootstrap server and the relay,
+allows the local relay's plain `http://`, and raises kitsune2's gossip burst limit
+(`initiateBurstFactor` 3 → 100). With the default limit, a desktop and a phone
+agent on one dev network saw the phone drop the desktop's gossip rounds and new
+data take minutes to arrive; with 100 there were no drops and sync took about
+90 s. Small, constantly restarted dev networks are where this limit bites.
+Leave production on the default until the cause is understood.
+
 ## Usage
 
 See [apps/holochain-runtime-example](../../apps/holochain-runtime-example) for a complete app covering all three platforms.
