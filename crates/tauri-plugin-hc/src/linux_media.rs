@@ -9,7 +9,7 @@
 //! web content. The user still gets no OS-level prompt, matching how the same
 //! UI behaves in the other webviews.
 //!
-//! The devices must also be visible to WebKit's GStreamer; the tauri-runtime
+//! The devices must also be visible to WebKit's GStreamer; the runtime-tauri
 //! dev shell provides the capture plugins (see `GST_PLUGIN_PATH_1_0` in
 //! flake.nix).
 

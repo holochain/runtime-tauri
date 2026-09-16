@@ -9,8 +9,8 @@ resolver = "2"
 [workspace.package]
 edition = "2021"
 authors = ["Holochain Core Dev Team <devcore@holochain.org>"]
-homepage = "https://github.com/holochain/tauri-runtime"
-repository = "https://github.com/holochain/tauri-runtime"
+homepage = "https://github.com/holochain/runtime-tauri"
+repository = "https://github.com/holochain/runtime-tauri"
 keywords = ["holochain", "tauri", "p2p", "desktop", "mobile"]
 license = "MIT OR Apache-2.0"
 

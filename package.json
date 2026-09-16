@@ -1,5 +1,5 @@
 {
-  "name": "tauri-runtime-dev",
+  "name": "runtime-tauri-dev",
   "private": true,
   "workspaces": [
     "crates/tauri-plugin-hc",

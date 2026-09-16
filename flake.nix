@@ -152,7 +152,7 @@
         {
           # Shells for apps built on tauri-plugin-hc to compose, e.g.
           #   devShells.default = pkgs.mkShell {
-          #     inputsFrom = [ inputs'.tauri-runtime.devShells.tauriDev ];
+          #     inputsFrom = [ inputs'.runtime-tauri.devShells.tauriDev ];
           #     packages = [ pkgs.nodejs_24 ];
           #   };
           # tauriDev: desktop app + zome builds. tauriAndroidDev: adds the
@@ -179,7 +179,7 @@
             buildInputs = tauriDeps;
             shellHook = tauriShellHook + androidShellHook + ''
               # Visual cue that you are inside the dev shell.
-              export PS1='\[\033[1;35m\][tauri-runtime:\w]\$\[\033[0m\] '
+              export PS1='\[\033[1;35m\][runtime-tauri:\w]\$\[\033[0m\] '
             '';
           };
         };
