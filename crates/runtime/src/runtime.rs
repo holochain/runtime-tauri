@@ -144,6 +144,8 @@ impl Runtime {
             error!("Failed to set default crypto provider for tls: {:?}", res);
         }
 
+        crate::check_data_root_path(&data_root_path)?;
+
         // Phase (a): spawn lair in-proc at `<data_root>/lair-keystore-config.yaml`
         // (the location holochain uses when `lair_root` is `None`).
         let keystore_config_path = data_root_path.join("lair-keystore-config.yaml");

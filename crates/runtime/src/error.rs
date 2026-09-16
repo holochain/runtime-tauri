@@ -48,6 +48,17 @@ pub enum RuntimeError {
 
     #[error("Invalid Arguments: {0}")]
     InvalidArguments(String),
+
+    /// Lair binds a Unix socket at `<data_root>/socket`, and socket paths are
+    /// limited to [`crate::MAX_SOCKET_PATH_BYTES`] bytes.
+    #[error(
+        "data root path is too long for lair's socket: {path} is {len} bytes, the limit is {max}"
+    )]
+    DataRootPathTooLong {
+        path: String,
+        len: usize,
+        max: usize,
+    },
 }
 
 impl From<ConductorError> for RuntimeError {
