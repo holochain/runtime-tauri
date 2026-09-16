@@ -1,6 +1,6 @@
 # App generator and startup helpers plan
 
-Status: decided, not yet implemented (except `dev_network_config`, see §4.2). Read
+Status: decided. The startup helpers (§4.2) are built; the generator is not. Read
 this whole document before writing code.
 
 Decisions:
@@ -116,37 +116,39 @@ From Emergence and kando's shells, plus needs that are already visible:
 
 ### 4.2 Helpers
 
-Each is independently usable, has no hidden ordering, and takes plain inputs. Extract
-them from Emergence's working `lib.rs`, which is the most debugged source, with unit
-tests:
+Each is independently usable, has no hidden ordering, and takes plain inputs. They
+were extracted from Emergence's `lib.rs`, which now uses them (285 → 111 lines):
 
-- **Done:** `dev_network_config(url)` and `dev_network_url!()` — local bootstrap/relay,
+- `dev_network_config(url)` and `dev_network_url!()` — local bootstrap/relay,
   plain-text relay, raised gossip burst limit, and the rule that every agent on a dev
   network uses the same URL (§6.7, §6.8).
-- `user_network` — persisted user network config (get/default/set commands, applied on
-  top of the base config).
-- `paths::data_dir(app, opts)` — dev instance numbering with lock files, production
-  location, mobile via Tauri's path API, and a length check against the ~108-byte
-  AF_UNIX limit (§6.9).
-- `install::ensure(runtime, app_id, bundle, opts) -> Outcome { Installed, Present, Upgraded }`
-  — install-if-missing + enable, with an opt-in "update coordinators when the bundle
-  hash changed" (kando's `update_app_if_necessary`).
-- `window::open_main(plugin, app_id, opts)` and `window::close(app, label)`.
+- `app_paths(app_name, author)` — production data directory, or one
+  `holochain-<n>` directory per running dev instance claimed with a lock file, plus
+  the saved network settings file; rejects paths too long for lair's socket (§6.9).
+- `UserNetworkConfig` and the `get_`/`default_`/`set_user_network_config` app
+  commands — URLs the user saves from a settings screen, applied on top of the app's
+  network config.
+- `on_ready(app, f)` — run startup work once the conductor is up, even if it came up
+  before the call.
+- `Runtime::install_app_if_missing(payload, enable)` — install and enable on first
+  run, leave the app alone afterwards. Updating coordinators when the bundle changed
+  (kando's `update_app_if_necessary`) is not built yet; add it when porting kando.
 
-The generated `lib.rs` calls them from the app's own `.setup()`:
+No window helper: `main_window_builder(...).await?.build()?` already is one.
+
+The generated `lib.rs` calls them from the app's own `run()` and `.setup()`:
 
 ```rust
 .setup(|app| {
-    let handle = app.handle().clone();
-    app.listen(EVENT_READY, move |_| {
-        let handle = handle.clone();
-        tauri::async_runtime::spawn(async move {
-            let rt = handle.holochain()?.runtime();
-            tauri_plugin_hc::install::ensure(rt, APP_ID, HAPP_BUNDLE_BYTES).await?;
-            // app-specific work goes here, as ordinary code
-            tauri_plugin_hc::window::open_main(&handle, APP_ID, |w| w.inner_size(1200.0, 880.0)).await?;
-            Ok(())
-        });
+    tauri_plugin_hc::on_ready(app.handle(), |handle| async move {
+        let plugin = handle.holochain()?;
+        plugin.runtime().install_app_if_missing(payload(), true).await?;
+        // app-specific work goes here, as ordinary code
+        plugin.main_window_builder("main", Some(APP_ID.into()), Default::default())
+            .await?
+            .inner_size(1200.0, 880.0)
+            .build()?;
+        Ok::<_, anyhow::Error>(())
     });
     Ok(())
 })
@@ -263,8 +265,8 @@ Every item below cost real debugging time. Encode each one; do not rediscover th
 1. Push this repository; switch Emergence's `tauri-plugin-hc` dependency and flake input
    to `github:holochain/runtime-tauri`; restore Emergence's canonical `.happ`; commit its
    branch.
-2. Helpers (§4.2) in `tauri-plugin-hc`, extracted from Emergence; port Emergence's
-   `lib.rs` to them.
+2. ~~Helpers (§4.2) in `tauri-plugin-hc`, extracted from Emergence; port Emergence's
+   `lib.rs` to them.~~ Done.
 3. `packages/create-holochain-tauri` (§5), using Emergence's files as the golden output.
    Its CI test: generate into a fresh `hc-scaffold` example hApp and into a copy of
    Emergence, then build desktop and Android.
