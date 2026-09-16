@@ -40,6 +40,52 @@ library is about 1.3 GB (1.18 GB of it DWARF) and fails to install on an emulato
 with `INSTALL_FAILED_INSUFFICIENT_STORAGE`. Dependency symbols are kept, so
 backtraces still show function names.
 
+## Startup helpers
+
+Functions an app calls from its own `run()` and `.setup()`; none of them owns the
+Tauri builder, so anything else the app needs at startup goes in between.
+
+```rust
+let paths = tauri_plugin_hc::app_paths(APP_ID, env!("CARGO_PKG_AUTHORS"))?;
+
+tauri::Builder::default()
+    .manage(tauri_plugin_hc::UserNetworkConfigPath(paths.user_network_config.clone()))
+    .invoke_handler(tauri::generate_handler![
+        tauri_plugin_hc::get_user_network_config,
+        tauri_plugin_hc::default_user_network_config,
+        tauri_plugin_hc::set_user_network_config,
+    ])
+    .plugin(tauri_plugin_hc::init(
+        vec_to_locked(vec![]),
+        HolochainPluginConfig::new(paths.holochain_dir.clone(), network_config(&paths)),
+    ))
+    .setup(|app| {
+        tauri_plugin_hc::on_ready(app.handle(), |handle| async move {
+            let plugin = handle.holochain()?;
+            plugin.runtime().install_app_if_missing(payload, true).await?;
+            plugin.main_window_builder("main", Some(APP_ID.into()), Default::default())
+                .await?
+                .build()?;
+            Ok::<_, anyhow::Error>(())
+        });
+        Ok(())
+    })
+```
+
+- `app_paths` picks the conductor data directory and the saved network settings
+  file. Production uses the user data directory. Dev uses the user cache
+  directory with one `holochain-<n>` directory per running instance, claimed with
+  a lock file, so several dev agents can run side by side. It rejects a data
+  directory too long for lair's socket (about 107 bytes).
+- `UserNetworkConfig::apply_saved` overrides the app's bootstrap and relay URLs
+  with ones the user saved. `get_user_network_config`,
+  `default_user_network_config` and `set_user_network_config` are app commands
+  for a settings screen; setting restarts the app.
+- `on_ready` runs startup work once the conductor is up, including when it came
+  up before `on_ready` was called, and only once.
+- `Runtime::install_app_if_missing` installs and enables the hApp on first run
+  and leaves it alone after that.
+
 ## Local development network
 
 For dev builds, point every agent at one `kitsune2-bootstrap-srv` on your machine

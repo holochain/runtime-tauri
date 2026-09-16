@@ -35,6 +35,14 @@ pub enum Error {
     /// request or response, or a command argument such as an agent key.
     #[error("serialization error: {0}")]
     Serialization(String),
+
+    /// [`crate::app_paths`] could not find or create the app's data directory.
+    #[error("app data directory error: {0}")]
+    AppPaths(String),
+
+    /// The saved user network settings could not be read or written.
+    #[error("user network settings error: {0}")]
+    UserNetworkConfig(String),
 }
 
 impl Serialize for Error {

@@ -1,5 +1,13 @@
 # Unreleased
 
+- Startup helpers, extracted from Emergence so each app stops carrying its own
+  copy: `tauri_plugin_hc::app_paths` (production and per-dev-instance data
+  directories), `UserNetworkConfig` with the `get_`/`default_`/`set_user_network_config`
+  app commands, and `on_ready`, which runs startup work once the conductor is up
+  even if it came up first. `holochain-conductor-runtime` adds
+  `Runtime::install_app_if_missing`, which `setup_app` now uses, and fails boot
+  with `DataRootPathTooLong` when lair's socket path would exceed the Unix socket
+  limit instead of lair's `path must be shorter than SUN_LEN`.
 - `tauri-plugin-hc` adds `dev_network_config(url)` and `dev_network_url!()` for
   local dev networks: one `kitsune2-bootstrap-srv` as bootstrap server and iroh
   relay, plain-HTTP relay allowed, and kitsune2's gossip `initiateBurstFactor`

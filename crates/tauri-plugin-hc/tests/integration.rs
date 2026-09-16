@@ -19,7 +19,9 @@ use holochain::prelude::{
 use holochain_types::prelude::{AppStatus, Link, Nonce256Bits, Timestamp};
 use tauri::test::{mock_builder, mock_context, noop_assets};
 use tauri_plugin_hc::test_support::{build_app, wait_for_ready, BOOT_TIMEOUT};
-use tauri_plugin_hc::{Error, HolochainExt, HolochainPluginConfig, NetworkConfig};
+use tauri_plugin_hc::{
+    AppInstallOutcome, Error, HolochainExt, HolochainPluginConfig, NetworkConfig,
+};
 use tempfile::TempDir;
 use uuid::Uuid;
 
@@ -351,4 +353,77 @@ fn failed_boot_reports_its_cause_instead_of_timing_out() {
         elapsed < BOOT_TIMEOUT / 2,
         "the boot error must surface without waiting out {BOOT_TIMEOUT:?}, took {elapsed:?}"
     );
+}
+
+/// `on_ready` runs its work once the conductor is up, whether it was registered
+/// while the boot was still in flight or after it had finished.
+#[test]
+fn on_ready_runs_before_and_after_boot() {
+    let tmp = TempDir::new().unwrap();
+    let app = build_app(tmp.path());
+
+    let (early_tx, early_rx) = tokio::sync::oneshot::channel();
+    tauri_plugin_hc::on_ready(app.handle(), move |handle| async move {
+        let ready = handle.holochain().and_then(|p| p.try_runtime()).is_ok();
+        early_tx.send(ready).unwrap();
+        Ok::<_, Error>(())
+    });
+
+    tauri::async_runtime::block_on(async move {
+        let registered_early_saw_runtime = tokio::time::timeout(BOOT_TIMEOUT, early_rx)
+            .await
+            .expect("on_ready registered before boot did not run")
+            .unwrap();
+        assert!(registered_early_saw_runtime);
+
+        let (late_tx, late_rx) = tokio::sync::oneshot::channel();
+        tauri_plugin_hc::on_ready(app.handle(), move |_| async move {
+            late_tx.send(()).unwrap();
+            Ok::<_, Error>(())
+        });
+        tokio::time::timeout(std::time::Duration::from_secs(5), late_rx)
+            .await
+            .expect("on_ready registered after boot did not run")
+            .unwrap();
+    });
+}
+
+/// `install_app_if_missing` installs and enables on first run and leaves the app
+/// alone afterwards, including when it has been disabled.
+#[test]
+fn install_app_if_missing_installs_once() {
+    let tmp = TempDir::new().unwrap();
+    let app = build_app(tmp.path());
+
+    tauri::async_runtime::block_on(async move {
+        wait_for_ready(&app).await;
+        let runtime = app.holochain().unwrap().runtime();
+        let payload = || InstallAppPayload {
+            source: AppBundleSource::Bytes(HAPP_FIXTURE.to_vec().into()),
+            agent_key: None,
+            installed_app_id: Some(APP_ID.into()),
+            network_seed: Some(Uuid::new_v4().to_string()),
+            roles_settings: Some(HashMap::new()),
+            ignore_genesis_failure: false,
+            restore_from_dht: false,
+        };
+
+        let first = runtime
+            .install_app_if_missing(payload(), true)
+            .await
+            .expect("first install failed");
+        assert!(matches!(first, AppInstallOutcome::Installed(_)));
+        let apps = runtime.list_apps().await.unwrap();
+        assert_eq!(apps[0].status, AppStatus::Enabled);
+
+        runtime.disable_app(APP_ID.into()).await.unwrap();
+        let second = runtime
+            .install_app_if_missing(payload(), true)
+            .await
+            .expect("second call failed");
+        assert!(matches!(second, AppInstallOutcome::AlreadyInstalled));
+        let apps = runtime.list_apps().await.unwrap();
+        assert_eq!(apps.len(), 1);
+        assert!(matches!(apps[0].status, AppStatus::Disabled(_)));
+    });
 }

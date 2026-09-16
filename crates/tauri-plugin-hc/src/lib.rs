@@ -20,17 +20,26 @@ mod dev_network;
 mod error;
 #[cfg(target_os = "linux")]
 mod linux_media;
+mod paths;
+mod ready;
+mod user_network;
 
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_support;
 
 pub use dev_network::{dev_network_config, DEV_INITIATE_BURST_FACTOR};
 pub use error::{Error, Result};
+pub use paths::{app_paths, AppPaths, MAX_DEV_INSTANCES};
+pub use ready::on_ready;
+pub use user_network::{
+    default_user_network_config, get_user_network_config, set_user_network_config,
+    UserNetworkConfig, UserNetworkConfigPath,
+};
 
 // Re-export the native config type consumers build, and the runtime itself.
 pub use holochain::conductor::config::NetworkConfig;
 pub use holochain_conductor_runtime::Runtime;
-pub use holochain_conductor_runtime::{ConductorError, RuntimeError};
+pub use holochain_conductor_runtime::{AppInstallOutcome, ConductorError, RuntimeError};
 // hc-auth: re-export the module and its config/status types so consumers can
 // build a `HcAuthConfig` and read `HcAuthStatus` without depending on the
 // runtime crate directly.
