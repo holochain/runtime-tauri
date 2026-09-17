@@ -9,6 +9,11 @@ on:
     branches:
       - main
 
+# A new push to a PR cancels the run for the previous push.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test-rust:
     name: Test Rust crates
