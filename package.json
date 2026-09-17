@@ -8,20 +8,20 @@
     "packages/create-holochain-tauri"
   ],
   "scripts": {
-    "build:plugin-js": "npm run build -w crates/tauri-plugin-hc",
-    "build:example": "npm run build -w apps/holochain-runtime-example/ui",
+    "build:plugin-js": "npm run build -w tauri-plugin-hc-api",
+    "build:example": "npm run build -w holochain-runtime-example-ui",
 
     "start:example": "npm run build:example && cargo run -p holochain-runtime-example",
-    "start:example-android": "npm run build:example && npm run start:android -w apps/holochain-runtime-example --",
-    "start:example-ios": "npm run build:example && npm run start:ios -w apps/holochain-runtime-example --",
+    "start:example-android": "npm run build:example && npm run start:android -w holochain-runtime-example --",
+    "start:example-ios": "npm run build:example && npm run start:ios -w holochain-runtime-example --",
 
-    "build:example-android": "npm run build:example && npm run build:android -w apps/holochain-runtime-example --",
-    "build:example-ios": "npm run build:example && npm run build:ios -w apps/holochain-runtime-example --",
+    "build:example-android": "npm run build:example && npm run build:android -w holochain-runtime-example --",
+    "build:example-ios": "npm run build:example && npm run build:ios -w holochain-runtime-example --",
 
     "test:runtime": "RUST_BACKTRACE=1 RUST_LOG=info cargo test -p holochain-conductor-runtime -- --nocapture",
     "test:tauri-plugin-hc": "RUST_BACKTRACE=1 RUST_LOG=info cargo test -p tauri-plugin-hc -- --nocapture",
     "test:example": "npm run build:example && cargo build -p holochain-runtime-example",
-    "test:create": "npm test -w packages/create-holochain-tauri",
+    "test:create": "npm test -w create-holochain-tauri",
     "test": "npm run test:runtime && npm run test:tauri-plugin-hc && npm run test:example && npm run test:create",
 
     "lint": "npm run build:example && cargo clippy --workspace --all-targets -- -Dwarnings",
