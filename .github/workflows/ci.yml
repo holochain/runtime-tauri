@@ -30,11 +30,14 @@ jobs:
         with:
           name: holochain-ci
 
-      # `make test` = fmt --check + clippy -Dwarnings + the runtime and plugin
-      # test suites + a build of the example app.
+      # `npm run ci` = fmt --check + clippy -Dwarnings + the runtime, plugin and
+      # generator test suites + a build of the example app.
       - name: Run tests
         run: |
-          nix develop --no-update-lock-file --command bash -c "npm ci && make test"
+          nix develop --no-update-lock-file --command bash -c "npm ci && npm run ci"
+
+      - name: Check for uncommitted changes
+        run: git diff --exit-code
 
   build-desktop:
     name: Build example (desktop)

@@ -1,5 +1,10 @@
 # Unreleased
 
+- The Makefile is gone; `npm run ci` is what CI runs (`fmt:check`, `lint`, `test`).
+  `npm run lint` now builds the example UI first, since `cargo clippy --workspace`
+  compiles the example app and Tauri resolves `frontendDist` at compile time. CI
+  is one workflow ending in a `ci_pass` job, the status check the holochain org
+  rulesets require.
 - `create-holochain-tauri` (`npm create holochain-tauri`) adds a desktop and Android
   app to an hApp repository: `src-tauri/` using the startup helpers, `package.json`
   scripts for desktop and Android agents on a local dev network, and dev shells on

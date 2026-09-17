@@ -24,7 +24,10 @@
     "test:create": "npm test -w packages/create-holochain-tauri",
     "test": "npm run test:runtime && npm run test:tauri-plugin-hc && npm run test:example && npm run test:create",
 
-    "lint": "cargo clippy --workspace --all-targets -- -Dwarnings",
-    "fmt": "cargo fmt --all"
+    "lint": "npm run build:example && cargo clippy --workspace --all-targets -- -Dwarnings",
+    "fmt": "cargo fmt --all",
+    "fmt:check": "cargo fmt --all -- --check",
+
+    "ci": "npm run fmt:check && npm run lint && npm test"
   }
 }

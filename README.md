@@ -53,7 +53,7 @@ npm run start:example-ios      # iOS device or simulator (macOS host)
 Run what CI runs — formatting, clippy, the runtime, plugin and generator test suites, and a build of the example:
 
 ```sh
-make test
+npm run ci
 ```
 
 ## Origins
