@@ -6,7 +6,7 @@
 2. Run `nix flake update` before `nix develop` to pull the matching Holochain
    toolchain. For a major version you will also need to change `holonix.url` in
    `flake.nix` first (e.g. `main-0.7` → `main-0.8`).
-3. Make whatever changes the new Holochain API requires. `make test` builds both
+3. Make whatever changes the new Holochain API requires. `npm run ci` builds both
    crates and runs their suites.
 4. For a major version the test fixture usually has to be rebuilt. Use the
    scaffolding tool from the matching Holochain release to regenerate
@@ -37,14 +37,18 @@ Profiles only take effect in a workspace root, so every app that depends on
 
 ## Testing
 
-`make test` is what CI runs: `cargo fmt --check`, `cargo clippy -Dwarnings`, the
-`holochain-conductor-runtime` and `tauri-plugin-hc` suites, and a build of
-the example app. The suites boot real conductors, so expect a few minutes.
+`npm run ci` is what CI runs: `cargo fmt --check`, `cargo clippy -Dwarnings`, the
+`holochain-conductor-runtime`, `tauri-plugin-hc` and `create-holochain-tauri`
+suites, and a build of the example app. The suites boot real conductors, so
+expect a few minutes. Each piece is its own script (`fmt:check`, `lint`,
+`test:runtime`, `test:tauri-plugin-hc`, `test:example`, `test:create`).
 
 The example app's UI must be built before the Rust build will succeed — Tauri
-resolves `frontendDist` at compile time via `generate_context!`. `make test` and
-the `npm run start:*` scripts do this for you; a bare `cargo build -p
-holochain-runtime-example` will not.
+resolves `frontendDist` at compile time via `generate_context!`. This includes
+`cargo clippy --workspace`, which is why `npm run lint` builds the UI first.
+`npm run ci`, `npm run lint`, `npm run test:example` and the `npm run start:*`
+scripts all do this for you; a bare `cargo build -p holochain-runtime-example`
+will not.
 
 ## Releasing
 
