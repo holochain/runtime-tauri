@@ -20,12 +20,14 @@
 
 use jni::objects::JObject;
 use jni::sys::{jint, JNI_VERSION_1_6};
-use jni::JavaVM;
+use jni::{jni_sig, jni_str, Env, JavaVM};
 use std::ffi::c_void;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
 #[no_mangle]
-pub extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *mut c_void) -> jint {
+pub extern "system" fn JNI_OnLoad(vm: *mut jni::sys::JavaVM, _reserved: *mut c_void) -> jint {
+    // SAFETY: the JVM passes a valid, non-null VM pointer to JNI_OnLoad.
+    let vm = unsafe { JavaVM::from_raw(vm) };
     match catch_unwind(AssertUnwindSafe(|| install_application_context(&vm))) {
         Ok(Ok(())) => {}
         Ok(Err(e)) => log::warn!("tauri-plugin-hc: could not initialize ndk_context: {e}"),
@@ -35,36 +37,34 @@ pub extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *mut c_void) -> jint {
 }
 
 fn install_application_context(vm: &JavaVM) -> jni::errors::Result<()> {
-    let mut env = vm.get_env()?;
-    let application = env
-        .call_static_method(
-            "android/app/ActivityThread",
-            "currentApplication",
-            "()Landroid/app/Application;",
-            &[],
-        )?
-        .l()?;
-    if application.is_null() {
-        return Err(jni::errors::Error::NullPtr(
-            "ActivityThread.currentApplication()",
-        ));
-    }
-    install(vm, &mut env, application)
+    // The thread that runs JNI_OnLoad is already attached, so this only pushes a
+    // local frame and hands us an `Env`; it does not create a new attachment.
+    vm.attach_current_thread(|env| {
+        let application = env
+            .call_static_method(
+                jni_str!("android/app/ActivityThread"),
+                jni_str!("currentApplication"),
+                jni_sig!("()Landroid/app/Application;"),
+                &[],
+            )?
+            .l()?;
+        if application.is_null() {
+            return Err(jni::errors::Error::NullPtr(
+                "ActivityThread.currentApplication()",
+            ));
+        }
+        install(vm, env, application)
+    })
 }
 
-fn install(vm: &JavaVM, env: &mut jni::JNIEnv, context: JObject) -> jni::errors::Result<()> {
+fn install(vm: &JavaVM, env: &mut Env, context: JObject) -> jni::errors::Result<()> {
     // A global reference the process never releases: ndk_context hands out the raw
-    // pointer for as long as the library is loaded.
-    let context = env.new_global_ref(context)?;
-    let context_ptr = context.as_obj().as_raw() as *mut c_void;
-    std::mem::forget(context);
+    // pointer for as long as the library is loaded. `into_raw` leaks the `Global`.
+    let context_ptr = env.new_global_ref(&context)?.into_raw() as *mut c_void;
     // SAFETY: the VM pointer is valid for the life of the process, and the context
     // pointer is a global reference that is deliberately never deleted.
     unsafe {
-        ndk_context::initialize_android_context(
-            vm.get_java_vm_pointer() as *mut c_void,
-            context_ptr,
-        );
+        ndk_context::initialize_android_context(vm.get_raw() as *mut c_void, context_ptr);
     }
     Ok(())
 }
