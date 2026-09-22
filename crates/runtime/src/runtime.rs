@@ -885,8 +885,8 @@ mod test {
     use holochain_types::prelude::AppStatus;
     use holochain_types::prelude::DisabledAppReason;
     use holochain_types::prelude::ExternIO;
-    use holochain_types::prelude::Link;
     use holochain_types::prelude::Nonce256Bits;
+    use holochain_types::prelude::Record;
     use holochain_types::prelude::Timestamp;
 
     use sodoken::LockedArray;
@@ -896,12 +896,12 @@ mod test {
     use url2::Url2;
     use uuid::Uuid;
 
-    const HAPP_FIXTURE: &[u8] = include_bytes!("../fixtures/forum.happ");
+    use test_happ::{test_happ_bytes, ROLE_NAME, ZOME_NAME};
 
     async fn install_happ_fixture(runtime: Runtime, app_id: &str) -> AppInfo {
         runtime
             .install_app(InstallAppPayload {
-                source: AppBundleSource::Bytes(HAPP_FIXTURE.to_vec().into()),
+                source: AppBundleSource::Bytes(test_happ_bytes().into()),
                 agent_key: None,
                 installed_app_id: Some(app_id.into()),
                 network_seed: Some(Uuid::new_v4().to_string()),
@@ -1018,7 +1018,7 @@ mod test {
 
         let res = runtime
             .install_app(InstallAppPayload {
-                source: AppBundleSource::Bytes(HAPP_FIXTURE.to_vec().into()),
+                source: AppBundleSource::Bytes(test_happ_bytes().into()),
                 agent_key: None,
                 installed_app_id: Some("my-app-1".into()),
                 network_seed: Some(Uuid::new_v4().to_string()),
@@ -1042,7 +1042,7 @@ mod test {
 
         let err = runtime
             .install_app(InstallAppPayload {
-                source: AppBundleSource::Bytes(HAPP_FIXTURE.to_vec().into()),
+                source: AppBundleSource::Bytes(test_happ_bytes().into()),
                 agent_key: None,
                 installed_app_id: Some("my-app-1".into()),
                 network_seed: Some(Uuid::new_v4().to_string()),
@@ -1167,7 +1167,7 @@ mod test {
         let key1 = rt1.device_agent_key();
         let app1 = rt1
             .install_app(InstallAppPayload {
-                source: AppBundleSource::Bytes(HAPP_FIXTURE.to_vec().into()),
+                source: AppBundleSource::Bytes(test_happ_bytes().into()),
                 agent_key: Some(key1.clone()),
                 installed_app_id: Some("app-1".into()),
                 network_seed: Some(Uuid::new_v4().to_string()),
@@ -1211,7 +1211,7 @@ mod test {
         let agent_key = runtime.import_key_seed([3u8; 32]).await.unwrap();
         let app_info = runtime
             .install_app(InstallAppPayload {
-                source: AppBundleSource::Bytes(HAPP_FIXTURE.to_vec().into()),
+                source: AppBundleSource::Bytes(test_happ_bytes().into()),
                 agent_key: Some(agent_key.clone()),
                 installed_app_id: Some("my-app-1".into()),
                 network_seed: Some(Uuid::new_v4().to_string()),
@@ -1245,9 +1245,9 @@ mod test {
 
         let result = rt1
             .install_app(InstallAppPayload {
-                source: AppBundleSource::Bytes(HAPP_FIXTURE.to_vec().into()),
+                source: AppBundleSource::Bytes(test_happ_bytes().into()),
                 agent_key: Some(foreign_key),
-                installed_app_id: Some("forum-foreign".into()),
+                installed_app_id: Some("test-foreign".into()),
                 network_seed: Some(Uuid::new_v4().to_string()),
                 roles_settings: Some(HashMap::new()),
                 ignore_genesis_failure: false,
@@ -1395,7 +1395,7 @@ mod test {
 
         let app_info = install_happ_fixture(runtime.clone(), "my-app-1").await;
         let Provisioned(ProvisionedCell { cell_id, .. }) =
-            app_info.cell_info.get("forum").unwrap().first().unwrap()
+            app_info.cell_info.get(ROLE_NAME).unwrap().first().unwrap()
         else {
             panic!("App Info has no CellId")
         };
@@ -1404,8 +1404,8 @@ mod test {
             .sign_zome_call(ZomeCallParams {
                 provenance: cell_id.agent_pubkey().clone(),
                 cell_id: cell_id.clone(),
-                zome_name: "forum".into(),
-                fn_name: "get_all_posts".into(),
+                zome_name: ZOME_NAME.into(),
+                fn_name: "get_test_entries".into(),
                 cap_secret: None,
                 payload: vec![].into(),
                 nonce: Nonce256Bits::from([0; 32]),
@@ -1548,24 +1548,22 @@ mod test {
         let app_info = install_happ_fixture(runtime.clone(), "my-app-1").await;
         runtime.enable_app("my-app-1".into()).await.unwrap();
 
-        // Role name is "forum"; the coordinator zome inside it is "posts" (see
-        // dnas/forum/workdir/dna.yaml and the example UI's AllPosts.svelte).
         let Provisioned(ProvisionedCell { cell_id, .. }) =
-            app_info.cell_info.get("forum").unwrap().first().unwrap()
+            app_info.cell_info.get(ROLE_NAME).unwrap().first().unwrap()
         else {
             panic!("App Info has no CellId")
         };
 
         // Sign a real zome call the same way the webview signer does, then
         // dispatch it through the in-process app API (AppRequest::CallZome)
-        // rather than the websocket. get_all_posts takes no arguments, so the
+        // rather than the websocket. get_test_entries takes no arguments, so the
         // payload is an encoded unit; an empty byte vec would fail to decode.
         let signed = runtime
             .sign_zome_call(ZomeCallParams {
                 provenance: cell_id.agent_pubkey().clone(),
                 cell_id: cell_id.clone(),
-                zome_name: "posts".into(),
-                fn_name: "get_all_posts".into(),
+                zome_name: ZOME_NAME.into(),
+                fn_name: "get_test_entries".into(),
                 cap_secret: None,
                 payload: ExternIO::encode(()).unwrap(),
                 nonce: Nonce256Bits::from([0; 32]),
@@ -1579,12 +1577,12 @@ mod test {
             .await
             .unwrap();
 
-        // A fresh forum app has no posts: the call round-trips to an empty list.
+        // A fresh cell has no test entries: the call round-trips to an empty list.
         let AppResponse::ZomeCalled(io) = resp else {
             panic!("expected AppResponse::ZomeCalled, got {resp:?}");
         };
-        let posts: Vec<Link> = io.decode().unwrap();
-        assert!(posts.is_empty());
+        let entries: Vec<Record> = io.decode().unwrap();
+        assert!(entries.is_empty());
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -1603,7 +1601,7 @@ mod test {
         runtime.enable_app("my-app-1".into()).await.unwrap();
 
         let Provisioned(ProvisionedCell { cell_id, .. }) =
-            app_info.cell_info.get("forum").unwrap().first().unwrap()
+            app_info.cell_info.get(ROLE_NAME).unwrap().first().unwrap()
         else {
             panic!("App Info has no CellId")
         };
@@ -1614,26 +1612,16 @@ mod test {
             .await
             .unwrap();
 
-        // create_post commits an entry (and a link); the posts zome's
-        // post_commit hook emits a Signal::App for each, which must reach the
-        // subscriber.
-        #[derive(serde::Serialize, Debug)]
-        struct Post {
-            title: String,
-            content: String,
-        }
+        // create_test_entry commits an entry; the zome's post_commit hook then
+        // emits a Signal::App, which must reach the subscriber.
         let signed = runtime
             .sign_zome_call(ZomeCallParams {
                 provenance: cell_id.agent_pubkey().clone(),
                 cell_id: cell_id.clone(),
-                zome_name: "posts".into(),
-                fn_name: "create_post".into(),
+                zome_name: ZOME_NAME.into(),
+                fn_name: "create_test_entry".into(),
                 cap_secret: None,
-                payload: ExternIO::encode(Post {
-                    title: "hello".into(),
-                    content: "world".into(),
-                })
-                .unwrap(),
+                payload: ExternIO::encode("hello").unwrap(),
                 nonce: Nonce256Bits::from([1; 32]),
                 expires_at: Timestamp(Timestamp::now().as_micros() + 60_000_000),
             })
@@ -1746,7 +1734,7 @@ mod test {
         let res = runtime
             .setup_app(
                 InstallAppPayload {
-                    source: AppBundleSource::Bytes(HAPP_FIXTURE.to_vec().into()),
+                    source: AppBundleSource::Bytes(test_happ_bytes().into()),
                     agent_key: None,
                     installed_app_id: Some("my-app-1".into()),
                     network_seed: Some(Uuid::new_v4().to_string()),
@@ -1765,7 +1753,7 @@ mod test {
         let res = runtime
             .setup_app(
                 InstallAppPayload {
-                    source: AppBundleSource::Bytes(HAPP_FIXTURE.to_vec().into()),
+                    source: AppBundleSource::Bytes(test_happ_bytes().into()),
                     agent_key: None,
                     installed_app_id: Some("my-app-2".into()),
                     network_seed: Some(Uuid::new_v4().to_string()),
@@ -1799,7 +1787,7 @@ mod test {
         let res = runtime
             .setup_app(
                 InstallAppPayload {
-                    source: AppBundleSource::Bytes(HAPP_FIXTURE.to_vec().into()),
+                    source: AppBundleSource::Bytes(test_happ_bytes().into()),
                     agent_key: None,
                     installed_app_id: Some("my-app-1".into()),
                     network_seed: Some(Uuid::new_v4().to_string()),
@@ -1835,7 +1823,7 @@ mod test {
         let res = runtime
             .setup_app(
                 InstallAppPayload {
-                    source: AppBundleSource::Bytes(HAPP_FIXTURE.to_vec().into()),
+                    source: AppBundleSource::Bytes(test_happ_bytes().into()),
                     agent_key: None,
                     installed_app_id: Some("my-app-1".into()),
                     network_seed: Some(Uuid::new_v4().to_string()),

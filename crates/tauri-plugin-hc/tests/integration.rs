@@ -16,7 +16,7 @@ use holochain::conductor::api::{AppRequest, AppResponse, ProvisionedCell};
 use holochain::prelude::{
     decode, encode, AppBundleSource, ExternIO, InstallAppPayload, ZomeCallParams,
 };
-use holochain_types::prelude::{AppStatus, Link, Nonce256Bits, Timestamp};
+use holochain_types::prelude::{AppStatus, Nonce256Bits, Record, Timestamp};
 use tauri::test::{mock_builder, mock_context, noop_assets};
 use tauri_plugin_hc::test_support::{build_app, wait_for_ready, BOOT_TIMEOUT};
 use tauri_plugin_hc::{
@@ -25,15 +25,16 @@ use tauri_plugin_hc::{
 use tempfile::TempDir;
 use uuid::Uuid;
 
-const HAPP_FIXTURE: &[u8] = include_bytes!("../../runtime/fixtures/forum.happ");
-const APP_ID: &str = "forum";
+use test_happ::{test_happ_bytes, ROLE_NAME, ZOME_NAME};
 
-async fn install_and_enable_forum(
+const APP_ID: &str = "test-app";
+
+async fn install_and_enable_test_happ(
     runtime: &tauri_plugin_hc::Runtime,
 ) -> holochain::conductor::api::AppInfo {
     let app_info = runtime
         .install_app(InstallAppPayload {
-            source: AppBundleSource::Bytes(HAPP_FIXTURE.to_vec().into()),
+            source: AppBundleSource::Bytes(test_happ_bytes().into()),
             agent_key: None,
             installed_app_id: Some(APP_ID.into()),
             network_seed: Some(Uuid::new_v4().to_string()),
@@ -61,7 +62,7 @@ fn plugin_boots_conductor_in_tauri_app() {
         wait_for_ready(&app).await;
         let runtime = app.holochain().unwrap().runtime();
 
-        install_and_enable_forum(&runtime).await;
+        install_and_enable_test_happ(&runtime).await;
 
         // Attach an app interface — this is the websocket the legacy injection
         // wires a webview to. A real bound port proves the endpoint exists.
@@ -96,7 +97,7 @@ fn app_request_serves_app_api_in_process() {
         let plugin = app.holochain().unwrap();
         let runtime = plugin.runtime();
 
-        let app_info = install_and_enable_forum(&runtime).await;
+        let app_info = install_and_enable_test_happ(&runtime).await;
 
         // main_window_builder does this in real use; bind a label directly here.
         plugin.bind_window("main", APP_ID.into());
@@ -112,10 +113,9 @@ fn app_request_serves_app_api_in_process() {
         };
         assert_eq!(info.installed_app_id, APP_ID);
 
-        // A signed CallZome over the IPC codec round-trips to an empty post list.
-        // Role name is "forum"; the coordinator zome inside it is "posts".
+        // A signed CallZome over the IPC codec round-trips to an empty list.
         let Provisioned(ProvisionedCell { cell_id, .. }) =
-            app_info.cell_info.get("forum").unwrap().first().unwrap()
+            app_info.cell_info.get(ROLE_NAME).unwrap().first().unwrap()
         else {
             panic!("App Info has no CellId")
         };
@@ -123,8 +123,8 @@ fn app_request_serves_app_api_in_process() {
             .sign_zome_call(ZomeCallParams {
                 provenance: cell_id.agent_pubkey().clone(),
                 cell_id: cell_id.clone(),
-                zome_name: "posts".into(),
-                fn_name: "get_all_posts".into(),
+                zome_name: ZOME_NAME.into(),
+                fn_name: "get_test_entries".into(),
                 cap_secret: None,
                 payload: ExternIO::encode(()).unwrap(),
                 nonce: Nonce256Bits::from([0; 32]),
@@ -143,8 +143,8 @@ fn app_request_serves_app_api_in_process() {
         let AppResponse::ZomeCalled(io) = resp else {
             panic!("expected AppResponse::ZomeCalled, got {resp:?}");
         };
-        let posts: Vec<Link> = io.decode().unwrap();
-        assert!(posts.is_empty());
+        let entries: Vec<Record> = io.decode().unwrap();
+        assert!(entries.is_empty());
 
         // A request from an unbound window is refused — a window can only reach
         // the app it was opened for.
@@ -169,11 +169,11 @@ fn rebind_window_reroutes_app_request_in_place() {
         let runtime = plugin.runtime();
 
         // Two enabled apps to rebind between.
-        install_and_enable_forum(&runtime).await;
-        const APP_ID_2: &str = "forum-2";
+        install_and_enable_test_happ(&runtime).await;
+        const APP_ID_2: &str = "test-app-2";
         runtime
             .install_app(InstallAppPayload {
-                source: AppBundleSource::Bytes(HAPP_FIXTURE.to_vec().into()),
+                source: AppBundleSource::Bytes(test_happ_bytes().into()),
                 agent_key: None,
                 installed_app_id: Some(APP_ID_2.into()),
                 network_seed: Some(Uuid::new_v4().to_string()),
@@ -182,11 +182,11 @@ fn rebind_window_reroutes_app_request_in_place() {
                 restore_from_dht: false,
             })
             .await
-            .expect("install forum-2 failed");
+            .expect("install test-app-2 failed");
         runtime
             .enable_app(APP_ID_2.into())
             .await
-            .expect("enable forum-2 failed");
+            .expect("enable test-app-2 failed");
 
         // Bind to the first app, then rebind to the second — the route follows
         // the binding, with no recreate.
@@ -399,7 +399,7 @@ fn install_app_if_missing_installs_once() {
         wait_for_ready(&app).await;
         let runtime = app.holochain().unwrap().runtime();
         let payload = || InstallAppPayload {
-            source: AppBundleSource::Bytes(HAPP_FIXTURE.to_vec().into()),
+            source: AppBundleSource::Bytes(test_happ_bytes().into()),
             agent_key: None,
             installed_app_id: Some(APP_ID.into()),
             network_seed: Some(Uuid::new_v4().to_string()),

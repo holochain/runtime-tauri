@@ -21,7 +21,7 @@ use tauri_plugin_hc::{
 };
 
 const APP_ID: &str = "forum";
-const HAPP_BUNDLE: &[u8] = include_bytes!("../../../../crates/runtime/fixtures/forum.happ");
+const HAPP_BUNDLE: &[u8] = include_bytes!("../../forum.happ");
 
 /// Desktop keeps the historical throwaway temp dir (the integration test relies
 /// on a fresh conductor per run); mobile uses the per-app data dir.

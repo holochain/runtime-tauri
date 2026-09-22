@@ -2,8 +2,11 @@
 members = [
     "crates/runtime",
     "crates/tauri-plugin-hc",
+    "crates/test-happ",
     "apps/holochain-runtime-example/src-tauri",
 ]
+# The test hApp's zomes build for wasm32 in a workspace of their own.
+exclude = ["crates/test-happ/zomes"]
 resolver = "2"
 
 [workspace.package]

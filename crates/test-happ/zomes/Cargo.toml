@@ -1,0 +1,17 @@
+# The test hApp's zomes, compiled to wasm by ../build.rs. A workspace of its own
+# because it builds for wasm32-unknown-unknown against the hdk/hdi of the
+# holochain release the outer workspace depends on.
+[workspace]
+members = ["integrity", "coordinator"]
+resolver = "2"
+
+[workspace.dependencies]
+# Bump together with `holochain` in the top-level Cargo.toml.
+hdi = "=0.8.0"
+hdk = "=0.7.0"
+# The entry derive macros expand to paths in this crate; the version hdi uses.
+holochain_serialized_bytes = "0.0.57"
+serde = "1.0"
+
+[profile.release]
+opt-level = "z"

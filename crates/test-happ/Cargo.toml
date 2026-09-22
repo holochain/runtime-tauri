@@ -1,0 +1,10 @@
+[package]
+name = "test-happ"
+version = "0.0.0"
+description = "The hApp the runtime and plugin test suites install"
+publish = false
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+holochain_types = { workspace = true }

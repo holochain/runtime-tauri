@@ -62,4 +62,4 @@ runtime-tauri grew out of [holochain/android-service-runtime](https://github.com
 
 ## Development
 
-[DEVELOPMENT.md](./DEVELOPMENT.md) covers bumping the Holochain version, regenerating test fixtures, and releasing.
+[DEVELOPMENT.md](./DEVELOPMENT.md) covers bumping the Holochain version, the test hApp, and releasing.
