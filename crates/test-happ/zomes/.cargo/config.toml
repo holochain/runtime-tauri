@@ -1,0 +1,5 @@
+# The same flags holochain builds its own test wasms with. hdk supplies
+# getrandom's backend on wasm32, and host functions are imported from the
+# conductor at instantiation, so the linker must leave them undefined.
+[target.wasm32-unknown-unknown]
+rustflags = ['--cfg=getrandom_backend="custom"', "-C", "link-arg=--import-undefined"]

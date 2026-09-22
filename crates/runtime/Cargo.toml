@@ -60,3 +60,4 @@ holochain = { workspace = true, features = ["encryption", "schema", "wasmer-wasm
 [dev-dependencies]
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["test-util"] }
+test-happ = { path = "../test-happ" }

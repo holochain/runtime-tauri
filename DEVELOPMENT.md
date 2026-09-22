@@ -2,16 +2,33 @@
 
 ## Bumping the Holochain version
 
-1. Update the holochain dependencies in the top-level `Cargo.toml`.
+1. Update the holochain dependencies in the top-level `Cargo.toml`, and the
+   `hdk`, `hdi` and `holochain_serialized_bytes` versions in
+   `crates/test-happ/zomes/Cargo.toml` to the ones that holochain release uses.
 2. Run `nix flake update` before `nix develop` to pull the matching Holochain
    toolchain. For a major version you will also need to change `holonix.url` in
    `flake.nix` first (e.g. `main-0.7` → `main-0.8`).
 3. Make whatever changes the new Holochain API requires. `npm run ci` builds both
    crates and runs their suites.
-4. For a major version the test fixture usually has to be rebuilt. Use the
-   scaffolding tool from the matching Holochain release to regenerate
-   `crates/runtime/fixtures/forum.happ`: run `hc-scaffold example`, follow the
-   instructions to initialize the generated repo, then `npm run package`.
+4. For a major version the example app's `forum.happ` usually has to be
+   rebuilt; the test suites do not use it. Use the scaffolding tool from the
+   matching Holochain release to regenerate
+   `apps/holochain-runtime-example/forum.happ`: run `hc-scaffold example`,
+   follow the instructions to initialize the generated repo, then
+   `npm run package`. This can wait for that scaffolding release; it does not
+   block releasing the crates.
+
+## Test hApp
+
+The runtime and plugin test suites install the hApp from `crates/test-happ`
+(an unpublished workspace crate, used only as a dev-dependency), not a
+prebuilt `.happ`. Its zomes in `crates/test-happ/zomes` are a minimal
+integrity/coordinator pair: `create_test_entry`, `get_test_entries`, and a
+`post_commit` that emits an app signal. Its `build.rs` compiles them to wasm
+against the pinned hdk/hdi, so a holochain bump that changes the wasm ABI
+only needs those versions bumped. The zomes are a separate cargo workspace
+because they build for `wasm32-unknown-unknown`; `zomes/.cargo/config.toml`
+holds the flags that target needs.
 
 The wasm execution backend is chosen per target in `crates/runtime/Cargo.toml`,
 not by a cargo feature — `wasmer-sys-cranelift` everywhere except iOS, which
