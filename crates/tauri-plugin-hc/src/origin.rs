@@ -10,8 +10,14 @@
 //! navigation or page load and locks to that. Every window from
 //! [`crate::HolochainPlugin::main_window_builder`] then refuses to navigate
 //! anywhere else and to open new windows.
+//!
+//! The one place an origin still has to be predicted is the legacy app
+//! websocket, whose `Origin` allow-list is fixed when the interface is attached,
+//! before the page exists: see [`app_origin`].
 
-use tauri::Url;
+use crate::{Error, Result};
+use tauri::utils::config::FrontendDist;
+use tauri::{AppHandle, Runtime, Url, WebviewUrl};
 
 /// `url` reduced to its origin: scheme, host and explicit port, no path.
 ///
@@ -60,9 +66,89 @@ pub(crate) fn origin_header_value(origin: &Url) -> String {
     value
 }
 
+/// The origin Tauri will load `url` from, predicted from the app config the way
+/// Tauri's own webview manager resolves it. Only the legacy app websocket needs
+/// this, because its `Origin` allow-list must exist before the page does.
+///
+/// Mirrors Tauri 2.11: `devUrl` in a dev build (proxied through the app
+/// protocol on mobile), `frontendDist` when it is a URL, otherwise the app
+/// protocol; custom schemes are rewritten to `http://<scheme>.<host>` on
+/// Windows and Android. It assumes the builder's default `use_https_scheme`
+/// (off), which the plugin does not set; a consumer that turns it on gets a
+/// websocket handshake refused on those platforms.
+pub(crate) fn app_origin<R: Runtime>(app: &AppHandle<R>, url: &WebviewUrl) -> Result<Url> {
+    let resolved = match url {
+        WebviewUrl::External(url) => {
+            let app_url = configured_app_url(app);
+            if proxied_on_mobile(url) && app_url.make_relative(url).is_some() {
+                tauri_protocol_url()
+            } else {
+                url.clone()
+            }
+        }
+        WebviewUrl::CustomProtocol(url) => {
+            if cfg!(any(windows, target_os = "android")) {
+                let host = url.host_str().unwrap_or_default();
+                Url::parse(&format!("http://{}.{host}", url.scheme()))
+                    .map_err(|e| Error::UnsupportedWebviewUrl(format!("{url}: {e}")))?
+            } else {
+                url.clone()
+            }
+        }
+        WebviewUrl::App(_) => {
+            let app_url = configured_app_url(app);
+            if proxied_on_mobile(&app_url) {
+                tauri_protocol_url()
+            } else {
+                app_url
+            }
+        }
+        other => return Err(Error::UnsupportedWebviewUrl(format!("{other:?}"))),
+    };
+    Ok(origin_of(&resolved))
+}
+
+/// Tauri's `get_app_url` with `use_https_scheme` off.
+fn configured_app_url<R: Runtime>(app: &AppHandle<R>) -> Url {
+    let config = app.config();
+    let served_from = if tauri::is_dev() {
+        config.build.dev_url.clone()
+    } else {
+        match &config.build.frontend_dist {
+            Some(FrontendDist::Url(url)) => Some(url.clone()),
+            _ => None,
+        }
+    };
+    served_from.unwrap_or_else(tauri_protocol_url)
+}
+
+/// Tauri's `PROXY_DEV_SERVER && is_local_network_url`: a mobile dev build loads
+/// a `localhost` or IP-address dev server through the app protocol instead.
+fn proxied_on_mobile(url: &Url) -> bool {
+    // `domain()` is `None` for IP-address hosts, which `host_str()` still has.
+    let local_network = match (url.domain(), url.host_str()) {
+        (Some(domain), _) => domain == "localhost",
+        (None, Some(_ip)) => true,
+        (None, None) => false,
+    };
+    tauri::is_dev() && cfg!(any(target_os = "android", target_os = "ios")) && local_network
+}
+
+/// Where Tauri serves embedded assets: `tauri://localhost`, or the wry
+/// workaround `http://tauri.localhost` on Windows and Android.
+fn tauri_protocol_url() -> Url {
+    let url = if cfg!(any(windows, target_os = "android")) {
+        "http://tauri.localhost"
+    } else {
+        "tauri://localhost"
+    };
+    Url::parse(url).expect("static app protocol url parses")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tauri::test::{mock_builder, mock_context, noop_assets};
 
     fn url(s: &str) -> Url {
         Url::parse(s).unwrap()
@@ -143,5 +229,45 @@ mod tests {
             &url("blob:http://tauri.localhost/3f1c"),
             &windows
         ));
+    }
+
+    #[test]
+    fn app_url_resolves_to_the_app_protocol_when_nothing_else_is_configured() {
+        let app = mock_builder()
+            .build(mock_context(noop_assets()))
+            .expect("mock app builds");
+        let handle = app.handle();
+        assert_eq!(handle.config().build.dev_url, None);
+
+        let origin = app_origin(handle, &WebviewUrl::App("index.html".into())).unwrap();
+        assert_eq!(origin, tauri_protocol_url());
+        assert!(same_origin(
+            &tauri_protocol_url().join("index.html").unwrap(),
+            &origin
+        ));
+    }
+
+    #[test]
+    fn external_urls_are_their_own_origin_on_desktop() {
+        let app = mock_builder()
+            .build(mock_context(noop_assets()))
+            .expect("mock app builds");
+        let handle = app.handle();
+
+        let external = url("https://ui.example.org/app/index.html");
+        assert_eq!(
+            app_origin(handle, &WebviewUrl::External(external)).unwrap(),
+            url("https://ui.example.org")
+        );
+        let custom = url("happ://forum/index.html");
+        let expected = if cfg!(any(windows, target_os = "android")) {
+            url("http://happ.forum")
+        } else {
+            url("happ://forum")
+        };
+        assert_eq!(
+            app_origin(handle, &WebviewUrl::CustomProtocol(custom)).unwrap(),
+            expected
+        );
     }
 }

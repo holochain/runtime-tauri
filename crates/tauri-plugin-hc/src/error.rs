@@ -31,6 +31,11 @@ pub enum Error {
     #[error("no holochain app is bound to this window")]
     WindowNotBound,
 
+    /// A `WebviewUrl` variant this plugin does not know how to derive an origin
+    /// for, so it cannot restrict the window to one.
+    #[error("unsupported webview url: {0}")]
+    UnsupportedWebviewUrl(String),
+
     /// A value crossing the IPC boundary could not be decoded: an App API
     /// request or response, or a command argument such as an agent key.
     #[error("serialization error: {0}")]

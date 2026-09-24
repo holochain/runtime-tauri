@@ -49,6 +49,15 @@
   `app_dirs2`, iroh's DNS resolver and `netdev` all make that call. An app that
   defines its own `JNI_OnLoad` will now fail to link and should initialize
   `ndk_context` from it instead.
+- `Runtime::ensure_app_websocket` and `setup_app` take the `AllowedOrigins` the
+  app interface accepts instead of attaching with `Any`, and
+  `main_window_builder` on the legacy websocket path passes the window's own
+  origin. The token stays reusable and non-expiring: it is injected on every
+  page load and `@holochain/client` re-authenticates with it on reconnect, so
+  a single-use or expiring token would break reload and reconnect.
+- `Runtime::ensure_app_websocket` fails with `AppInterfaceOriginsMismatch`
+  when the app's cached interface was attached for different origins, instead
+  of returning a port that refuses the handshake. `AppAuth` records them.
 - Dev builds drop dependency debug info (`debug = false` beside `opt-level = 3`).
   An Android debug library was ~1.3 GB, 1.18 GB of it DWARF, and failed to
   install on an emulator. The plugin README's recommended block includes it.
