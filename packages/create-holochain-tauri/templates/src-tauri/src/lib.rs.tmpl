@@ -15,12 +15,8 @@ pub fn run() {
         .expect("Could not set up the app's data directory");
 
     tauri::Builder::default()
+        // Where the plugin's `plugin:hc|*_user_network_config` commands read and write.
         .manage(UserNetworkConfigPath(paths.user_network_config.clone()))
-        .invoke_handler(tauri::generate_handler![
-            tauri_plugin_hc::get_user_network_config,
-            tauri_plugin_hc::default_user_network_config,
-            tauri_plugin_hc::set_user_network_config,
-        ])
         .plugin(init(
             vec_to_locked(vec![]),
             HolochainPluginConfig::new(paths.holochain_dir.clone(), network_config(&paths)),
@@ -88,7 +84,7 @@ fn network_config(paths: &AppPaths) -> NetworkConfig {
         NetworkConfig::default()
     };
 
-    // Bootstrap and relay URLs saved through set_user_network_config take priority.
+    // Bootstrap and relay URLs saved through `plugin:hc|set_user_network_config` take priority.
     UserNetworkConfig::apply_saved(&paths.user_network_config, &mut network_config);
 
     network_config
