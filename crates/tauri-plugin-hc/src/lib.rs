@@ -40,6 +40,7 @@ pub use user_network::{
 
 // Re-export the native config type consumers build, and the runtime itself.
 pub use holochain::conductor::config::NetworkConfig;
+pub use holochain_conductor_runtime::AllowedOrigins;
 pub use holochain_conductor_runtime::Runtime;
 pub use holochain_conductor_runtime::{AppInstallOutcome, ConductorError, RuntimeError};
 // hc-auth: re-export the module and its config/status types so consumers can
@@ -535,7 +536,10 @@ impl<R: TauriRuntime> HolochainPlugin<R> {
     /// to the legacy `__HC_LAUNCHER_ENV__` websocket wiring instead.
     ///
     /// The window is confined to the origin it first loads from (see
-    /// [`Self::lock_navigation`], which this applies).
+    /// [`Self::lock_navigation`], which this applies). On the legacy path the
+    /// app websocket accepts that origin only, predicted from the app config
+    /// because the interface is attached before the page exists; a `csp` must
+    /// also allow `ws://localhost:*` in `connect-src` for that path.
     ///
     /// Call `.build()` on the returned builder to actually open the window.
     pub async fn main_window_builder(
@@ -553,9 +557,13 @@ impl<R: TauriRuntime> HolochainPlugin<R> {
             // Legacy: attach an app websocket and point @holochain/client at it.
             // This path requires a bound app.
             let app_id = app_id.ok_or(Error::WindowNotBound)?;
+            let origin = origin::app_origin(&self.app_handle, &url)?;
+            let allowed_origins = AllowedOrigins::Origins(
+                [origin::origin_header_value(&origin)].into_iter().collect(),
+            );
             let app_auth = self
                 .try_runtime()?
-                .ensure_app_websocket(app_id.clone())
+                .ensure_app_websocket(app_id.clone(), allowed_origins)
                 .await?;
             format!(
                 r#"window.injectHolochainClientEnv("{}", {}, {:?}, "{}");"#,

@@ -7,7 +7,7 @@ It is built on [`holochain-conductor-runtime`](../runtime) and exposes it throug
 ## What it does
 
 - Unlocks the lair keystore and boots the conductor, emitting `holochain://lair-ready`, then `holochain://ready` — or `holochain://setup-failed` with the cause.
-- Opens webview windows bound to an installed app. The injected `__HC_TAURI_HOLOCHAIN__` env lets `@holochain/client` reach the conductor over Tauri IPC, with no loopback websocket; the older app-websocket path stays available per window via `WindowOptions`.
+- Opens webview windows bound to an installed app. The injected `__HC_TAURI_HOLOCHAIN__` env lets `@holochain/client` reach the conductor over Tauri IPC, with no loopback websocket; the older app-websocket path stays available per window via `WindowOptions`, with the websocket accepting only the window's own origin (and needing `ws://localhost:*` in the app's `connect-src`).
 - Confines those windows to the origin they first load from: navigation anywhere else is refused (and logged), and `window.open` / `target="_blank"` open nothing, so a link cannot swap the app's UI for a remote page that keeps the app's IPC. `blob:` URLs of that origin still navigate, so a UI can hand the user a file. `HolochainPlugin::lock_navigation` applies the same policy to a window the app builds itself.
 - Forwards each bound app's conductor signals to its window as `holochain://signal`.
 - Moves a window between installed apps in place with `rebind_window`, without recreating the OS window. A monotonic `seq` on the `holochain://rebound` event makes out-of-order delivery safe, and a failed rebind keeps the prior binding.

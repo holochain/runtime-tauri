@@ -46,6 +46,16 @@ pub enum RuntimeError {
     #[error("InstalledAppId must be specified when installing an app")]
     InstalledAppIdNotSpecified,
 
+    /// An app interface for this app is already attached with a different
+    /// `Origin` allow-list; one interface per app is cached, so the caller's
+    /// request could not be honoured.
+    #[error("app interface for {installed_app_id} is already attached for origins {existing}, not {requested}")]
+    AppInterfaceOriginsMismatch {
+        installed_app_id: String,
+        existing: String,
+        requested: String,
+    },
+
     #[error("Invalid Arguments: {0}")]
     InvalidArguments(String),
 
