@@ -18,6 +18,8 @@ It is built on [`holochain-conductor-runtime`](../runtime) and exposes it throug
 
 The plugin identifier `hc` is what goes in capability files and `plugin:hc|…` invokes. The webview-facing names are unchanged Holochain names rather than plugin names: the injected global is `__HC_TAURI_HOLOCHAIN__` (which `@holochain/client` looks for) and events use the `holochain://` scheme.
 
+Every hApp's `tauri.conf.json` should also set a `csp`; the one `create-holochain-tauri` writes allows script from the app itself only (plus WebAssembly, which `@holochain/client`'s libsodium needs) and connections to Tauri's IPC. That is the layer that keeps an injection in the UI from reaching the plugin's commands at all. Tauri applies it to pages it serves itself, so a `tauri dev` run against a Vite `devUrl` runs without one; the example app has no `devUrl` and is where the policy gets exercised.
+
 ## Build profile
 
 Add this to your app's workspace root `Cargo.toml` (profiles set in a member crate

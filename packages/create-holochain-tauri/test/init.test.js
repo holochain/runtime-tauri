@@ -49,6 +49,16 @@ test("init adds a Tauri app to an hc-scaffold hApp", () => {
   assert.equal(conf.identifier, "org.holochain.forum");
   assert.equal(conf.build.devUrl, "http://localhost:1420");
   assert.equal(conf.build.frontendDist, "../ui/dist");
+  // The example app is where the policy actually runs (its dev build serves the
+  // embedded UI, so Tauri applies the CSP); the template ships the same one.
+  const exampleConf = JSON.parse(
+    readFileSync(
+      new URL("../../../apps/holochain-runtime-example/src-tauri/tauri.conf.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  assert.match(conf.app.security.csp, /script-src 'self' 'wasm-unsafe-eval'/);
+  assert.deepEqual(conf.app.security, exampleConf.app.security);
 
   const pkg = JSON.parse(read(dir, "package.json"));
   assert.match(pkg.scripts["network:android"], /launch:android/);
