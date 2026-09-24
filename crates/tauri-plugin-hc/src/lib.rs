@@ -220,7 +220,7 @@ pub struct HolochainPlugin<R: TauriRuntime> {
     /// The origin each webview first loaded from, by label: recorded on its
     /// first navigation or page load, kept until the window is destroyed (see
     /// `origin.rs`). Windows from [`HolochainPlugin::lock_navigation`] refuse
-    /// to leave it.
+    /// to leave it, and the Linux media grant is answered against it.
     window_origins: WindowOrigins,
     /// Monotonic rebind counter — rides each [`EVENT_REBOUND`] as its `seq` so the
     /// injected env can drop a stale (out-of-order) rebound rather than leave the
@@ -686,10 +686,19 @@ fn plugin_builder<R: TauriRuntime>(
             }
         })
         // Linux: WebKitGTK denies camera/microphone access unless the embedder
-        // answers its permission-request signal (see linux_media.rs).
+        // answers its permission-request signal (see linux_media.rs). Each
+        // request is answered against the origin the webview first loaded.
         .on_webview_ready(|webview| {
             #[cfg(target_os = "linux")]
-            linux_media::allow_media_capture(&webview);
+            match webview.app_handle().holochain() {
+                Ok(plugin) => {
+                    linux_media::allow_media_capture(&webview, plugin.window_origins.clone())
+                }
+                Err(e) => log::warn!(
+                    "not granting media capture to webview {}: {e}",
+                    webview.label()
+                ),
+            }
             #[cfg(not(target_os = "linux"))]
             let _ = webview;
         })
