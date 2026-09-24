@@ -27,6 +27,14 @@
   with 100 there were no drops and a fresh phone agent synced in about 90 s.
   `dev_network_url!()` reads `INTERNAL_IP`/`BOOTSTRAP_PORT` at run time on desktop
   and at compile time on mobile.
+- Windows from `main_window_builder` are confined to the origin they first
+  load from, recorded from the webview itself rather than predicted from the
+  config: navigation elsewhere is refused and logged (`blob:` URLs of the
+  origin excepted, so exports still work), and `window.open` and
+  `target="_blank"` open nothing. `HolochainPlugin::lock_navigation` applies
+  the policy to a window the app builds itself; `navigation_allowed`,
+  `origin_of` and `same_origin` are public. This needs Tauri 2.8, which added
+  `on_new_window`, so the workspace floor moves from 2.5.1 to 2.8.0.
 - Linux: `tauri-plugin-hc` grants WebKitGTK user-media permission requests on
   every webview it sees, so a hApp UI can call `getUserMedia` (camera and
   microphone) on Linux as it already could on Android. WebKitGTK denies these
