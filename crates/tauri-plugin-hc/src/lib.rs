@@ -20,6 +20,7 @@ mod dev_network;
 mod error;
 #[cfg(target_os = "linux")]
 mod linux_media;
+mod origin;
 mod paths;
 mod ready;
 mod user_network;
@@ -29,15 +30,14 @@ pub mod test_support;
 
 pub use dev_network::{dev_network_config, DEV_INITIATE_BURST_FACTOR};
 pub use error::{Error, Result};
+pub use origin::{navigation_allowed, origin_of, same_origin};
 pub use paths::{app_paths, AppPaths, MAX_DEV_INSTANCES};
 pub use ready::on_ready;
-pub use user_network::{
-    default_user_network_config, get_user_network_config, set_user_network_config,
-    UserNetworkConfig, UserNetworkConfigPath,
-};
+pub use user_network::{UserNetworkConfig, UserNetworkConfigPath};
 
 // Re-export the native config type consumers build, and the runtime itself.
 pub use holochain::conductor::config::NetworkConfig;
+pub use holochain_conductor_runtime::AllowedOrigins;
 pub use holochain_conductor_runtime::Runtime;
 pub use holochain_conductor_runtime::{AppInstallOutcome, ConductorError, RuntimeError};
 // hc-auth: re-export the module and its config/status types so consumers can
@@ -58,7 +58,8 @@ use tokio::sync::broadcast;
 use sodoken::LockedArray;
 use tauri::{
     plugin::{Builder, TauriPlugin},
-    AppHandle, Emitter, Manager, RunEvent, Runtime as TauriRuntime, WebviewUrl,
+    webview::{NewWindowResponse, PageLoadEvent},
+    AppHandle, Emitter, Manager, RunEvent, Runtime as TauriRuntime, Url, WebviewUrl,
     WebviewWindowBuilder, WindowEvent,
 };
 
@@ -160,6 +161,20 @@ pub struct WindowOptions {
     pub use_app_websocket: bool,
 }
 
+/// Per-window first-loaded origins, shared with the closures that consult them.
+type WindowOrigins = Arc<Mutex<HashMap<String, Url>>>;
+
+/// Record `url`'s origin as the `label` webview's origin unless one is already
+/// recorded. First observation wins: everything after is checked against it.
+fn record_origin_if_absent(origins: &WindowOrigins, label: &str, url: &Url) {
+    let mut origins = origins.lock().unwrap();
+    if !origins.contains_key(label) {
+        let origin = origin::origin_of(url);
+        log::debug!("webview {label} locked to origin {origin}");
+        origins.insert(label.to_string(), origin);
+    }
+}
+
 /// Outcome of the conductor boot, held in place of a bare `Option<Runtime>` so a
 /// failure is remembered rather than looking the same as a boot still in flight.
 enum BootState {
@@ -200,6 +215,11 @@ pub struct HolochainPlugin<R: TauriRuntime> {
     /// by [`swap_runtime`]) can abort the previous forwarder before starting the
     /// new one — otherwise the old app's signals would keep arriving at the window.
     window_forwarders: Arc<Mutex<HashMap<String, tauri::async_runtime::JoinHandle<()>>>>,
+    /// The origin each webview first loaded from, by label: recorded on its
+    /// first navigation or page load, kept until the window is destroyed (see
+    /// `origin.rs`). Windows from [`HolochainPlugin::lock_navigation`] refuse
+    /// to leave it, and the Linux media grant is answered against it.
+    window_origins: WindowOrigins,
     /// Monotonic rebind counter — rides each [`EVENT_REBOUND`] as its `seq` so the
     /// injected env can drop a stale (out-of-order) rebound rather than leave the
     /// UI on a different app than `app_request` routes to.
@@ -437,6 +457,49 @@ impl<R: TauriRuntime> HolochainPlugin<R> {
         }
     }
 
+    /// Confine the `label` window to the origin it first loads from.
+    ///
+    /// Installs the plugin's navigation policy on `builder`: the first
+    /// navigation (or, on Android, where the webview does not report its initial
+    /// load as a navigation, the first page load) fixes the window's origin, and
+    /// every later navigation is checked with [`navigation_allowed`], refused and
+    /// logged when it fails. `window.open` and `target="_blank"` open nothing;
+    /// a hApp UI opens external links through the opener plugin. `main_window_builder`
+    /// applies this itself; call it for windows the app builds directly, and do
+    /// not chain another `on_navigation` or `on_new_window` after it, since
+    /// Tauri keeps only the last handler of each.
+    pub fn lock_navigation<'a, M: Manager<R>>(
+        &self,
+        label: impl Into<String>,
+        builder: WebviewWindowBuilder<'a, R, M>,
+    ) -> WebviewWindowBuilder<'a, R, M> {
+        let label = label.into();
+        let origins = self.window_origins.clone();
+        builder
+            .on_navigation(move |target| {
+                let locked = origins.lock().unwrap().get(&label).cloned();
+                match locked {
+                    None => {
+                        record_origin_if_absent(&origins, &label, target);
+                        true
+                    }
+                    Some(origin) => {
+                        let allowed = origin::navigation_allowed(target, &origin);
+                        if !allowed {
+                            log::warn!(
+                                "refusing navigation of window {label} to {target}: not on its origin {origin}"
+                            );
+                        }
+                        allowed
+                    }
+                }
+            })
+            .on_new_window(|target, _features| {
+                log::warn!("refusing to open a new window for {target}");
+                NewWindowResponse::Deny
+            })
+    }
+
     fn app_id_for_window(&self, label: &str) -> Result<InstalledAppId> {
         self.bound_app(label).ok_or(Error::WindowNotBound)
     }
@@ -469,6 +532,12 @@ impl<R: TauriRuntime> HolochainPlugin<R> {
     /// loopback websocket. Set [`WindowOptions::use_app_websocket`] to fall back
     /// to the legacy `__HC_LAUNCHER_ENV__` websocket wiring instead.
     ///
+    /// The window is confined to the origin it first loads from (see
+    /// [`Self::lock_navigation`], which this applies). On the legacy path the
+    /// app websocket accepts that origin only, predicted from the app config
+    /// because the interface is attached before the page exists; a `csp` must
+    /// also allow `ws://localhost:*` in `connect-src` for that path.
+    ///
     /// Call `.build()` on the returned builder to actually open the window.
     pub async fn main_window_builder(
         &self,
@@ -485,9 +554,13 @@ impl<R: TauriRuntime> HolochainPlugin<R> {
             // Legacy: attach an app websocket and point @holochain/client at it.
             // This path requires a bound app.
             let app_id = app_id.ok_or(Error::WindowNotBound)?;
+            let origin = origin::app_origin(&self.app_handle, &url)?;
+            let allowed_origins = AllowedOrigins::Origins(
+                [origin::origin_header_value(&origin)].into_iter().collect(),
+            );
             let app_auth = self
                 .try_runtime()?
-                .ensure_app_websocket(app_id.clone())
+                .ensure_app_websocket(app_id.clone(), allowed_origins)
                 .await?;
             format!(
                 r#"window.injectHolochainClientEnv("{}", {}, {:?}, "{}");"#,
@@ -507,9 +580,10 @@ impl<R: TauriRuntime> HolochainPlugin<R> {
             format!(r#"window.injectHolochainTauriEnv({injected:?}, "{PLUGIN_NAME}");"#)
         };
 
-        let mut window_builder = WebviewWindowBuilder::new(&self.app_handle, label, url)
+        let window_builder = WebviewWindowBuilder::new(&self.app_handle, label.clone(), url)
             .initialization_script(include_str!("../dist-js/holochain-env/index.min.js"))
             .initialization_script(env_script.as_str());
+        let mut window_builder = self.lock_navigation(label, window_builder);
 
         if let Some(title) = options.title {
             window_builder = window_builder.title(title);
@@ -590,7 +664,10 @@ fn plugin_builder<R: TauriRuntime>(
         .invoke_handler(tauri::generate_handler![
             commands::sign_zome_call,
             commands::sign_payload,
-            commands::app_request
+            commands::app_request,
+            user_network::get_user_network_config,
+            user_network::default_user_network_config,
+            user_network::set_user_network_config,
         ])
         .setup(move |app, _api| {
             app.manage(HolochainPlugin {
@@ -600,22 +677,44 @@ fn plugin_builder<R: TauriRuntime>(
                 app_handle: app.clone(),
                 window_apps: Arc::new(Mutex::new(HashMap::new())),
                 window_forwarders: Arc::new(Mutex::new(HashMap::new())),
+                window_origins: Arc::new(Mutex::new(HashMap::new())),
                 rebind_seq: AtomicU64::new(0),
             });
             on_setup(app);
             Ok(())
         })
+        // Every webview's first page load fixes its origin (see origin.rs). This
+        // is what records it for windows the app builds itself, and on Android,
+        // where the initial load never reaches the navigation handler.
+        .on_page_load(|webview, payload| {
+            if payload.event() == PageLoadEvent::Started {
+                if let Ok(plugin) = webview.app_handle().holochain() {
+                    record_origin_if_absent(&plugin.window_origins, webview.label(), payload.url());
+                }
+            }
+        })
         // Linux: WebKitGTK denies camera/microphone access unless the embedder
-        // answers its permission-request signal (see linux_media.rs).
+        // answers its permission-request signal (see linux_media.rs). Each
+        // request is answered against the origin the webview first loaded.
         .on_webview_ready(|webview| {
             #[cfg(target_os = "linux")]
-            linux_media::allow_media_capture(&webview);
+            match webview.app_handle().holochain() {
+                Ok(plugin) => {
+                    linux_media::allow_media_capture(&webview, plugin.window_origins.clone())
+                }
+                Err(e) => log::warn!(
+                    "not granting media capture to webview {}: {e}",
+                    webview.label()
+                ),
+            }
             #[cfg(not(target_os = "linux"))]
             let _ = webview;
         })
         // Prune a window's routing + signal forwarder when it is destroyed, so
         // the maps don't grow unbounded and a closed window's forwarder task is
         // aborted rather than left running until its app's signal channel closes.
+        // The origin record goes with it, and only then: a live window that is
+        // merely unbound must keep its lock.
         .on_event(|app_handle, event| {
             if let RunEvent::WindowEvent {
                 label,
@@ -625,6 +724,7 @@ fn plugin_builder<R: TauriRuntime>(
             {
                 if let Ok(plugin) = app_handle.holochain() {
                     plugin.drop_window(label);
+                    plugin.window_origins.lock().unwrap().remove(label);
                 }
             }
         })

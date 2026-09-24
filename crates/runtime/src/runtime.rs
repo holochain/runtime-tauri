@@ -673,13 +673,34 @@ impl Runtime {
         Ok(*signature.0)
     }
 
+    /// Attach an app interface for `installed_app_id` (once per app; later calls
+    /// return the same port and token) that accepts websocket connections only
+    /// from `allowed_origins`. A later call for the same app with different
+    /// origins fails with [`RuntimeError::AppInterfaceOriginsMismatch`] rather
+    /// than hand back an interface that would refuse its handshake.
+    ///
+    /// The token is reusable and never expires. It is handed to a webview in an
+    /// initialization script that runs again on every page load, and
+    /// `@holochain/client` re-authenticates with it whenever the socket drops,
+    /// so a single-use or expiring token would break reload and reconnect. What
+    /// keeps it out of reach is the `Origin` check on the interface plus the
+    /// webview only ever running the app's own UI, which is why callers should
+    /// pass that UI's origin and not [`AllowedOrigins::Any`].
     pub async fn ensure_app_websocket(
         &self,
         installed_app_id: InstalledAppId,
+        allowed_origins: AllowedOrigins,
     ) -> RuntimeResult<AppAuth> {
         let app_auths = self.app_auths.read().unwrap().clone();
         match app_auths.get(&installed_app_id) {
-            Some(app_websocket) => Ok(app_websocket.clone()),
+            Some(app_websocket) if app_websocket.allowed_origins == allowed_origins => {
+                Ok(app_websocket.clone())
+            }
+            Some(app_websocket) => Err(RuntimeError::AppInterfaceOriginsMismatch {
+                installed_app_id: installed_app_id.to_string(),
+                existing: app_websocket.allowed_origins.to_string(),
+                requested: allowed_origins.to_string(),
+            }),
             None => {
                 let authentication = self
                     .issue_app_authentication_token(IssueAppAuthenticationTokenPayload {
@@ -689,11 +710,16 @@ impl Runtime {
                     })
                     .await?;
                 let port = self
-                    .attach_app_interface(None, AllowedOrigins::Any, Some(installed_app_id.clone()))
+                    .attach_app_interface(
+                        None,
+                        allowed_origins.clone(),
+                        Some(installed_app_id.clone()),
+                    )
                     .await?;
                 let app_auth = AppAuth {
                     authentication,
                     port,
+                    allowed_origins,
                 };
 
                 let mut app_auths = self.app_auths.write().unwrap();
@@ -707,7 +733,8 @@ impl Runtime {
     /// Full process to setup an app
     ///
     /// Check if app is installed, if not install it, then optionally enable it.
-    /// Then ensure there is an app websocket and authentication for it.
+    /// Then ensure there is an app websocket and authentication for it, open to
+    /// `allowed_origins` (see [`Self::ensure_app_websocket`]).
     ///
     /// If an app is already installed, it will not be enabled. It is only enabled after a successful install.
     /// The reasoning is that if an app is disabled after that point,
@@ -716,6 +743,7 @@ impl Runtime {
         &self,
         payload: InstallAppPayload,
         enable_after_install: bool,
+        allowed_origins: AllowedOrigins,
     ) -> RuntimeResult<AppAuth> {
         // This is a temporary workaround because we cannot clone AppBundleSource,
         // which is needed to read the actual app name from the manifest
@@ -728,7 +756,8 @@ impl Runtime {
         self.install_app_if_missing(payload, enable_after_install)
             .await?;
 
-        self.ensure_app_websocket(installed_app_id).await
+        self.ensure_app_websocket(installed_app_id, allowed_origins)
+            .await
     }
 
     /// Install the app in `payload` unless an app with its `installed_app_id` is
@@ -1668,11 +1697,11 @@ mod test {
 
         // An app only gets one app ws
         let app_websocket = runtime
-            .ensure_app_websocket("my-app-1".into())
+            .ensure_app_websocket("my-app-1".into(), AllowedOrigins::Any)
             .await
             .unwrap();
         let app_websocket_2 = runtime
-            .ensure_app_websocket("my-app-1".into())
+            .ensure_app_websocket("my-app-1".into(), AllowedOrigins::Any)
             .await
             .unwrap();
         let app_websocket_3 = {
@@ -1700,13 +1729,28 @@ mod test {
 
         // Different apps get different ports and tokens
         let app_websocket_4 = runtime
-            .ensure_app_websocket("my-app-2".into())
+            .ensure_app_websocket("my-app-2".into(), AllowedOrigins::Any)
             .await
             .unwrap();
         assert_ne!(app_websocket_4.port, app_websocket.port);
         assert_ne!(
             app_websocket_4.authentication.token,
             app_websocket.authentication.token
+        );
+
+        // The cached interface keeps its origins: asking for others is an error,
+        // not a port whose handshake would fail.
+        let other_origins =
+            AllowedOrigins::Origins(["tauri://localhost".to_string()].into_iter().collect());
+        let result = runtime
+            .ensure_app_websocket("my-app-1".into(), other_origins)
+            .await;
+        assert!(
+            matches!(
+                result,
+                Err(RuntimeError::AppInterfaceOriginsMismatch { .. })
+            ),
+            "expected an origins mismatch, got {result:?}"
         );
     }
 
@@ -1755,6 +1799,7 @@ mod test {
                     restore_from_dht: false,
                 },
                 false,
+                AllowedOrigins::Any,
             )
             .await;
         assert!(res.is_ok());
@@ -1774,6 +1819,7 @@ mod test {
                     restore_from_dht: false,
                 },
                 false,
+                AllowedOrigins::Any,
             )
             .await;
         assert!(res.is_ok());
@@ -1808,6 +1854,7 @@ mod test {
                     restore_from_dht: false,
                 },
                 false,
+                AllowedOrigins::Any,
             )
             .await;
         assert!(res.is_ok());
@@ -1844,6 +1891,7 @@ mod test {
                     restore_from_dht: false,
                 },
                 true,
+                AllowedOrigins::Any,
             )
             .await;
         assert!(res.is_ok());

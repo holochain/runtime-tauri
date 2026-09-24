@@ -66,7 +66,7 @@ fn plugin_boots_conductor_in_tauri_app() {
         // Attach an app interface — this is the websocket the legacy injection
         // wires a webview to. A real bound port proves the endpoint exists.
         let app_auth = runtime
-            .ensure_app_websocket(APP_ID.into())
+            .ensure_app_websocket(APP_ID.into(), tauri_plugin_hc::AllowedOrigins::Any)
             .await
             .expect("ensure_app_websocket failed");
         assert!(app_auth.port > 0, "expected a bound app interface port");

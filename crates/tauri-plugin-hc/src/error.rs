@@ -43,6 +43,16 @@ pub enum Error {
     /// The saved user network settings could not be read or written.
     #[error("user network settings error: {0}")]
     UserNetworkConfig(String),
+
+    /// A user network command ran in an app that never registered a
+    /// [`crate::UserNetworkConfigPath`] with `.manage(..)`.
+    #[error("no UserNetworkConfigPath is managed; add `.manage(UserNetworkConfigPath(..))` to the app builder")]
+    UserNetworkConfigPathNotManaged,
+
+    /// A `WebviewUrl` variant this plugin does not know how to derive an origin
+    /// for, so it cannot restrict the window to one.
+    #[error("unsupported webview url: {0}")]
+    UnsupportedWebviewUrl(String),
 }
 
 impl Serialize for Error {

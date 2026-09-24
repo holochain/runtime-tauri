@@ -1,5 +1,56 @@
 # Unreleased
 
+- Security hardening from the September 2026 unyt audit (its runtime items):
+  - hc-auth no longer signs the auth server's challenge bytes as they are. Lair's
+    signature is the same Ed25519 primitive Holochain uses over actions, and a
+    consumer may install its hApp with the auth key, so an auth server (or
+    whoever held its certificate) could have obtained a signature over a
+    serialized action. `sign_challenge` now takes a decoded `hc_auth::Challenge`
+    and signs `"hc-auth-challenge:"` followed by it; a challenge that is not the
+    32 bytes the server issues ends the flow with `HcAuthStatus::Failed`, as an
+    unreachable server does. Requests and the auth material carry
+    `"scheme": "hc-auth-challenge-v1"` so hc-auth-server verifies the prefixed
+    message and can tell older raw-signature clients apart. The server change
+    has to be deployed before any client running this code.
+  - `Runtime::ensure_app_websocket` and `setup_app` take the `AllowedOrigins` the
+    app interface accepts instead of attaching with `Any`, and
+    `main_window_builder` on the legacy websocket path passes the window's own
+    origin. The token stays reusable and non-expiring: it is injected on every
+    page load and `@holochain/client` re-authenticates with it on reconnect, so
+    a single-use or expiring token would break reload and reconnect.
+  - Windows from `main_window_builder` are confined to the origin they first
+    load from, recorded from the webview itself rather than predicted from the
+    config: navigation elsewhere is refused and logged (`blob:` URLs of the
+    origin excepted, so exports still work), and `window.open` and
+    `target="_blank"` open nothing. `HolochainPlugin::lock_navigation` applies
+    the policy to a window the app builds itself; `navigation_allowed`,
+    `origin_of` and `same_origin` are public. This needs Tauri 2.8, which added
+    `on_new_window`, so the workspace floor moves from 2.5.1 to 2.8.0.
+  - The Linux camera/microphone grant is answered per request and only while
+    the page asking is on the origin the webview first loaded; any other page
+    is denied.
+  - `Runtime::ensure_app_websocket` fails with `AppInterfaceOriginsMismatch`
+    when the app's cached interface was attached for different origins, instead
+    of returning a port that refuses the handshake. `AppAuth` records them.
+  - `get_`, `default_` and `set_user_network_config` are plugin commands now
+    (`plugin:hc|…`), so Tauri's ACL applies to them. `hc:default` includes the
+    two reads; `set`, which repoints bootstrap and relay and restarts, needs
+    `hc:allow-set-user-network-config` on the window that hosts the settings
+    screen. Apps drop them from `generate_handler!`, keep
+    `.manage(UserNetworkConfigPath(..))`, and invoke them with the `plugin:hc|`
+    prefix; emergence does all three when it next bumps the plugin (Rust fails
+    to compile until then, the Svelte `invoke` calls fail at run time). Calling
+    them without that state is `Error::UserNetworkConfigPathNotManaged` rather
+    than a panic.
+  - `create-holochain-tauri` ships a restrictive `csp` instead of `csp: null`:
+    script from the app only plus `'wasm-unsafe-eval'` for libsodium, no remote
+    or inline script, `style-src-attr 'unsafe-inline'` because Tauri's style
+    nonces would otherwise cancel `'unsafe-inline'` for `style` attributes, and
+    `connect-src` limited to Tauri IPC (the legacy `use_app_websocket` path also
+    needs `ws://localhost:*`). Tauri only applies a CSP to pages it serves, so
+    `tauri dev` against a Vite `devUrl` runs without one. The example app ships
+    the same policy, which its dev build does apply, and turns `withGlobalTauri`
+    off, invoking its `report` command through `@tauri-apps/api` instead.
 - The Makefile is gone; `npm run ci` is what CI runs (`fmt:check`, `lint`, `test`).
   `npm run lint` now builds the example UI first, since `cargo clippy --workspace`
   compiles the example app and Tauri resolves `frontendDist` at compile time. CI

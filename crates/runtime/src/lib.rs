@@ -10,6 +10,7 @@ pub use runtime::*;
 
 pub mod hc_auth;
 pub use hc_auth::{HcAuthConfig, HcAuthStatus};
+pub use holochain_types::websocket::AllowedOrigins;
 
 mod error;
 pub use error::*;

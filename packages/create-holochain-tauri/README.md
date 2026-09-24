@@ -63,6 +63,15 @@ Scripts:
 startup helpers (`app_paths`, `on_ready`, `install_app_if_missing`,
 `dev_network_config`, `UserNetworkConfig`), and app-specific startup work goes there.
 
+`src-tauri/tauri.conf.json` sets a Content-Security-Policy that allows script
+from the app itself only and connections to Tauri's IPC. A UI that loads remote
+images, fonts or APIs adds those hosts to the matching directive rather than
+removing the policy. Tauri applies it to pages it serves itself, so it is in
+force in built apps and not in `tauri dev`, which loads the Vite dev server. The
+main window's capability grants `hc:default`; a settings screen that changes the
+bootstrap and relay servers also needs `hc:allow-set-user-network-config` (see
+the plugin's `permissions/default.toml`).
+
 ## Dev shell
 
 The app's dev shells must build on runtime-tauri's, which provide the Holochain tools,

@@ -7,14 +7,17 @@ It is built on [`holochain-conductor-runtime`](../runtime) and exposes it throug
 ## What it does
 
 - Unlocks the lair keystore and boots the conductor, emitting `holochain://lair-ready`, then `holochain://ready` — or `holochain://setup-failed` with the cause.
-- Opens webview windows bound to an installed app. The injected `__HC_TAURI_HOLOCHAIN__` env lets `@holochain/client` reach the conductor over Tauri IPC, with no loopback websocket; the older app-websocket path stays available per window via `WindowOptions`.
+- Opens webview windows bound to an installed app. The injected `__HC_TAURI_HOLOCHAIN__` env lets `@holochain/client` reach the conductor over Tauri IPC, with no loopback websocket; the older app-websocket path stays available per window via `WindowOptions`, with the websocket accepting only the window's own origin (and needing `ws://localhost:*` in the app's `connect-src`).
+- Confines those windows to the origin they first load from: navigation anywhere else is refused (and logged), and `window.open` / `target="_blank"` open nothing, so a link cannot swap the app's UI for a remote page that keeps the app's IPC. `blob:` URLs of that origin still navigate, so a UI can hand the user a file. `HolochainPlugin::lock_navigation` applies the same policy to a window the app builds itself.
 - Forwards each bound app's conductor signals to its window as `holochain://signal`.
 - Moves a window between installed apps in place with `rebind_window`, without recreating the OS window. A monotonic `seq` on the `holochain://rebound` event makes out-of-order delivery safe, and a failed rebind keeps the prior binding.
 - Signs zome calls for the UI, and arbitrary payloads via `sign_payload`.
 
 ## Permissions
 
-`hc:default` grants `allow-sign-zome-call` and `allow-app-request`. `sign_payload` is deliberately outside it: `sign_zome_call` signs the hash of a well-formed `ZomeCallParams`, so what it produces is only usable as the call it describes, while `sign_payload` signs caller-chosen bytes with no such domain separation. A capability has to name `hc:allow-sign-payload` itself.
+`hc:default` grants `allow-sign-zome-call`, `allow-app-request`, `allow-get-user-network-config` and `allow-default-user-network-config`. `sign_payload` and `set_user_network_config` are deliberately outside it and a capability has to name `hc:allow-sign-payload` or `hc:allow-set-user-network-config` for the one window that needs them; [permissions/default.toml](permissions/default.toml) says why.
+
+Every hApp's `tauri.conf.json` should also set a `csp`; the one `create-holochain-tauri` writes allows script from the app itself only (plus WebAssembly, which `@holochain/client`'s libsodium needs) and connections to Tauri's IPC. That is the layer that keeps an injection in the UI from reaching these commands at all. Tauri applies it to pages it serves itself, so a `tauri dev` run against a Vite `devUrl` runs without one; the example app has no `devUrl` and is where the policy gets exercised.
 
 The plugin identifier `hc` is what goes in capability files and `plugin:hc|…` invokes. The webview-facing names are unchanged Holochain names rather than plugin names: the injected global is `__HC_TAURI_HOLOCHAIN__` (which `@holochain/client` looks for) and events use the `holochain://` scheme.
 
@@ -50,11 +53,6 @@ let paths = tauri_plugin_hc::app_paths(APP_ID, env!("CARGO_PKG_AUTHORS"))?;
 
 tauri::Builder::default()
     .manage(tauri_plugin_hc::UserNetworkConfigPath(paths.user_network_config.clone()))
-    .invoke_handler(tauri::generate_handler![
-        tauri_plugin_hc::get_user_network_config,
-        tauri_plugin_hc::default_user_network_config,
-        tauri_plugin_hc::set_user_network_config,
-    ])
     .plugin(tauri_plugin_hc::init(
         vec_to_locked(vec![]),
         HolochainPluginConfig::new(paths.holochain_dir.clone(), network_config(&paths)),
@@ -78,9 +76,11 @@ tauri::Builder::default()
   a lock file, so several dev agents can run side by side. It rejects a data
   directory too long for lair's socket (about 107 bytes).
 - `UserNetworkConfig::apply_saved` overrides the app's bootstrap and relay URLs
-  with ones the user saved. `get_user_network_config`,
-  `default_user_network_config` and `set_user_network_config` are app commands
-  for a settings screen; setting restarts the app.
+  with ones the user saved. `plugin:hc|get_user_network_config`,
+  `plugin:hc|default_user_network_config` and `plugin:hc|set_user_network_config`
+  are plugin commands for a settings screen, reading and writing the file named
+  by the managed `UserNetworkConfigPath`; setting restarts the app and needs
+  `hc:allow-set-user-network-config` in the window's capability.
 - `on_ready` runs startup work once the conductor is up, including when it came
   up before `on_ready` was called, and only once.
 - `Runtime::install_app_if_missing` installs and enables the hApp on first run
