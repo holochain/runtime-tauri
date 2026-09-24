@@ -62,6 +62,9 @@ Scripts:
 `src-tauri/src/lib.rs` is the app's from then on: it is a short use of the plugin's
 startup helpers (`app_paths`, `on_ready`, `install_app_if_missing`,
 `dev_network_config`, `UserNetworkConfig`), and app-specific startup work goes there.
+The main window's capability grants `hc:default`; a settings screen that changes the
+bootstrap and relay servers also needs `hc:allow-set-user-network-config` (see the
+plugin's `permissions/default.toml`).
 
 ## Dev shell
 

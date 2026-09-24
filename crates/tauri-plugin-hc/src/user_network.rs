@@ -1,24 +1,21 @@
 //! Network settings a user saves from the app's UI, applied on top of the
 //! network config the app builds.
 //!
-//! The commands are ordinary app commands, not plugin commands, so the UI calls
-//! them by their bare names (`invoke("get_user_network_config")`). Register them
-//! with the file's location as managed state:
+//! The commands are plugin commands, invoked as `plugin:hc|get_user_network_config`
+//! and so on, and Tauri's ACL decides which windows may call them; which ones
+//! `hc:default` includes and why is in `permissions/default.toml`.
+//!
+//! The app tells the plugin where the file lives by managing its path:
 //!
 //! ```ignore
 //! tauri::Builder::default()
 //!     .manage(tauri_plugin_hc::UserNetworkConfigPath(paths.user_network_config.clone()))
-//!     .invoke_handler(tauri::generate_handler![
-//!         tauri_plugin_hc::get_user_network_config,
-//!         tauri_plugin_hc::default_user_network_config,
-//!         tauri_plugin_hc::set_user_network_config,
-//!     ])
 //! ```
 
 use crate::{Error, NetworkConfig, Result};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use tauri::{AppHandle, Runtime, State};
+use tauri::{AppHandle, Manager, Runtime};
 use url2::Url2;
 
 /// Saved bootstrap and relay URLs. A field left `None` keeps the app's value.
@@ -78,17 +75,25 @@ fn file_error(path: &Path, e: impl std::fmt::Display) -> Error {
 /// Managed state naming the file the user network commands read and write.
 pub struct UserNetworkConfigPath(pub PathBuf);
 
+/// The managed [`UserNetworkConfigPath`], or a clean error when the app never
+/// registered one (a bare `State` argument would panic instead).
+fn config_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf> {
+    app.try_state::<UserNetworkConfigPath>()
+        .map(|path| path.0.clone())
+        .ok_or(Error::UserNetworkConfigPathNotManaged)
+}
+
 /// The saved network settings, or `null` if none have been saved.
 #[tauri::command]
-pub fn get_user_network_config(
-    path: State<'_, UserNetworkConfigPath>,
-) -> std::result::Result<Option<UserNetworkConfig>, String> {
-    UserNetworkConfig::read(&path.0).map_err(|e| e.to_string())
+pub(crate) fn get_user_network_config<R: Runtime>(
+    app: AppHandle<R>,
+) -> Result<Option<UserNetworkConfig>> {
+    UserNetworkConfig::read(&config_path(&app)?)
 }
 
 /// Holochain's default bootstrap and relay URLs, to prefill or reset the form.
 #[tauri::command]
-pub fn default_user_network_config() -> UserNetworkConfig {
+pub(crate) fn default_user_network_config() -> UserNetworkConfig {
     let defaults = NetworkConfig::default();
     UserNetworkConfig {
         bootstrap_url: Some(defaults.bootstrap_url),
@@ -97,20 +102,18 @@ pub fn default_user_network_config() -> UserNetworkConfig {
 }
 
 /// Save new bootstrap and relay URLs and restart the app so the conductor boots
-/// with them.
+/// with them. Outside `hc:default`; see `permissions/default.toml`.
 #[tauri::command]
-pub fn set_user_network_config<R: Runtime>(
+pub(crate) fn set_user_network_config<R: Runtime>(
     app: AppHandle<R>,
-    path: State<'_, UserNetworkConfigPath>,
     bootstrap_url: Url2,
     relay_url: Url2,
-) -> std::result::Result<(), String> {
+) -> Result<()> {
     UserNetworkConfig {
         bootstrap_url: Some(bootstrap_url),
         relay_url: Some(relay_url),
     }
-    .write(&path.0)
-    .map_err(|e| e.to_string())?;
+    .write(&config_path(&app)?)?;
     app.restart();
 }
 
@@ -150,6 +153,42 @@ mod tests {
         let before = network.bootstrap_url.clone();
         UserNetworkConfig::apply_saved(&path, &mut network);
         assert_eq!(network.bootstrap_url, before);
+    }
+
+    #[test]
+    fn commands_fail_cleanly_when_no_path_is_managed() {
+        use tauri::test::{mock_builder, mock_context, noop_assets};
+        let app = mock_builder()
+            .build(mock_context(noop_assets()))
+            .expect("mock app builds");
+
+        let result = get_user_network_config(app.handle().clone());
+        assert!(
+            matches!(result, Err(Error::UserNetworkConfigPathNotManaged)),
+            "expected a managed-state error, got {result:?}"
+        );
+    }
+
+    #[test]
+    fn get_reads_the_managed_path() {
+        use tauri::test::{mock_builder, mock_context, noop_assets};
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("user-network-config.json");
+        let app = mock_builder()
+            .manage(UserNetworkConfigPath(path.clone()))
+            .build(mock_context(noop_assets()))
+            .expect("mock app builds");
+
+        assert_eq!(get_user_network_config(app.handle().clone()).unwrap(), None);
+        let saved = UserNetworkConfig {
+            bootstrap_url: Some(Url2::parse("https://bootstrap.example.org")),
+            relay_url: None,
+        };
+        saved.write(&path).unwrap();
+        assert_eq!(
+            get_user_network_config(app.handle().clone()).unwrap(),
+            Some(saved)
+        );
     }
 
     #[test]

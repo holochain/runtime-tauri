@@ -31,10 +31,7 @@ pub use dev_network::{dev_network_config, DEV_INITIATE_BURST_FACTOR};
 pub use error::{Error, Result};
 pub use paths::{app_paths, AppPaths, MAX_DEV_INSTANCES};
 pub use ready::on_ready;
-pub use user_network::{
-    default_user_network_config, get_user_network_config, set_user_network_config,
-    UserNetworkConfig, UserNetworkConfigPath,
-};
+pub use user_network::{UserNetworkConfig, UserNetworkConfigPath};
 
 // Re-export the native config type consumers build, and the runtime itself.
 pub use holochain::conductor::config::NetworkConfig;
@@ -590,7 +587,10 @@ fn plugin_builder<R: TauriRuntime>(
         .invoke_handler(tauri::generate_handler![
             commands::sign_zome_call,
             commands::sign_payload,
-            commands::app_request
+            commands::app_request,
+            user_network::get_user_network_config,
+            user_network::default_user_network_config,
+            user_network::set_user_network_config,
         ])
         .setup(move |app, _api| {
             app.manage(HolochainPlugin {

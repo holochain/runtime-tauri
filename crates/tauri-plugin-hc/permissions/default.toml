@@ -1,3 +1,21 @@
 [default]
-description = "Default permissions for the in-process Holochain plugin"
-permissions = ["allow-sign-zome-call", "allow-app-request"]
+description = """Default permissions for the in-process Holochain plugin.
+
+Included: signing zome calls, serving App API requests, and reading the saved
+and default network settings.
+
+Not included, and to be granted by name to the one window that needs them:
+
+- `allow-sign-payload`: `sign_zome_call` signs the hash of a well-formed
+  `ZomeCallParams`, so what it produces is only usable as the call it describes;
+  `sign_payload` signs caller-chosen bytes with no such domain separation.
+- `allow-set-user-network-config`: repoints the conductor's bootstrap and relay
+  servers and restarts the app, so any webview that can call it can move the
+  node onto servers of its choosing. Only the window with the settings screen
+  should hold it."""
+permissions = [
+  "allow-sign-zome-call",
+  "allow-app-request",
+  "allow-get-user-network-config",
+  "allow-default-user-network-config",
+]
