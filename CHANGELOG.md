@@ -1,5 +1,16 @@
 # Unreleased
 
+- hc-auth no longer signs the auth server's challenge bytes as they are. Lair's
+  signature is the same Ed25519 primitive Holochain uses over actions, and a
+  consumer may install its hApp with the auth key, so an auth server (or
+  whoever held its certificate) could have obtained a signature over a
+  serialized action. `sign_challenge` now takes a decoded `hc_auth::Challenge`
+  and signs `"hc-auth-challenge:"` followed by it; a challenge that is not the
+  32 bytes the server issues ends the flow with `HcAuthStatus::Failed`, as an
+  unreachable server does. Requests and the auth material carry
+  `"scheme": "hc-auth-challenge-v1"` so hc-auth-server verifies the prefixed
+  message and can tell older raw-signature clients apart. The server change
+  has to be deployed before any client running this code.
 - The Makefile is gone; `npm run ci` is what CI runs (`fmt:check`, `lint`, `test`).
   `npm run lint` now builds the example UI first, since `cargo clippy --workspace`
   compiles the example app and Tauri resolves `frontendDist` at compile time. CI
