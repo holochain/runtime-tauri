@@ -10,6 +10,20 @@
 //! 4. `PUT <server>/authenticate` with `{pubKey, payload, signature}` → a status,
 //! 5. if authorized, build the base64 auth material to inject into `NetworkConfig`.
 //!
+//! The signature never covers the server's bytes as-is. Lair's `sign_by_pub_key`
+//! is a plain Ed25519 signature, the same primitive Holochain uses to sign
+//! actions, so signing whatever the auth server returned would let whoever
+//! controls that endpoint obtain a signature over a serialized action, and a
+//! consumer may well install its hApp with this very key (unyt does). Instead the
+//! signed message is [`CHALLENGE_SIGNING_PREFIX`] followed by the challenge: a
+//! message starting with that ASCII prefix cannot be a msgpack-encoded action.
+//! The challenge must also be exactly [`CHALLENGE_LEN`] bytes, the size
+//! hc-auth-server issues; a server that sends anything else is reported as an
+//! auth failure, like one that is unreachable, and the conductor still boots.
+//! The request names the scheme as [`SIGNING_SCHEME`] so the server can verify
+//! the prefixed message, tell old raw-signature clients apart, and eventually
+//! refuse them; see `validate_signature` in hc-auth-server's `routes_client.rs`.
+//!
 //! Ported from the unytco `tauri-plugin-holochain` fork (`feat/hc-auth`), adapted
 //! to this crate's [`RuntimeError`] and the holochain `AgentPubKey` re-export.
 
@@ -23,6 +37,48 @@ use std::sync::Arc;
 
 fn default_true() -> bool {
     true
+}
+
+/// Length of a challenge from `GET /now`: 8 bytes of timestamp and 24 of nonce.
+/// Anything else is refused before signing.
+pub const CHALLENGE_LEN: usize = 32;
+
+/// Domain-separation prefix put in front of the challenge before signing, so a
+/// challenge signature is only ever usable as one.
+pub const CHALLENGE_SIGNING_PREFIX: &[u8] = b"hc-auth-challenge:";
+
+/// Name of the signing scheme, sent as `scheme` in `/authenticate` bodies and the
+/// auth material so the server verifies the prefixed message rather than the
+/// raw one it accepts from older clients.
+pub const SIGNING_SCHEME: &str = "hc-auth-challenge-v1";
+
+/// A challenge from `GET /now`, decoded and length-checked.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Challenge(pub [u8; CHALLENGE_LEN]);
+
+impl Challenge {
+    /// Decode the base64url payload `GET /now` returned, refusing any other size.
+    pub fn decode(payload_b64url: &str) -> RuntimeResult<Self> {
+        let bytes = BASE64_URL_SAFE_NO_PAD
+            .decode(payload_b64url)
+            .map_err(|e| RuntimeError::HcAuth(format!("Invalid payload base64url: {e}")))?;
+        let bytes: [u8; CHALLENGE_LEN] = bytes.as_slice().try_into().map_err(|_| {
+            RuntimeError::HcAuth(format!(
+                "Challenge must be {CHALLENGE_LEN} bytes, got {}",
+                bytes.len()
+            ))
+        })?;
+        Ok(Self(bytes))
+    }
+
+    /// The bytes actually signed: [`CHALLENGE_SIGNING_PREFIX`] followed by the
+    /// challenge. Verifiers reconstruct the same message.
+    pub fn signing_message(&self) -> Vec<u8> {
+        let mut message = Vec::with_capacity(CHALLENGE_SIGNING_PREFIX.len() + CHALLENGE_LEN);
+        message.extend_from_slice(CHALLENGE_SIGNING_PREFIX);
+        message.extend_from_slice(&self.0);
+        message
+    }
 }
 
 /// Configuration for the hc-auth flow. `auth_bootstrap`/`auth_relay` select which
@@ -130,23 +186,23 @@ pub async fn fetch_challenge(auth_server_url: &str) -> RuntimeResult<String> {
         .map_err(|e| RuntimeError::HcAuth(format!("GET /now body read failed: {e}")))
 }
 
-/// Sign the challenge payload with `agent_key` via lair; returns the signature as
-/// URL-safe base64 (no padding).
+/// Sign `challenge` with `agent_key` via lair; returns the signature as URL-safe
+/// base64 (no padding).
+///
+/// What is signed is [`Challenge::signing_message`], never the server's bytes
+/// themselves: see the module docs for why this must not be a raw signing oracle.
 pub async fn sign_challenge(
     keystore: &MetaLairClient,
     agent_key: &AgentPubKey,
-    payload_b64url: &str,
+    challenge: &Challenge,
 ) -> RuntimeResult<String> {
-    let payload_bytes = BASE64_URL_SAFE_NO_PAD
-        .decode(payload_b64url)
-        .map_err(|e| RuntimeError::HcAuth(format!("Invalid payload base64url: {e}")))?;
-
     let mut pub_key_32 = [0u8; 32];
     pub_key_32.copy_from_slice(agent_key.get_raw_32());
 
+    let message = challenge.signing_message();
     let signature = keystore
         .lair_client()
-        .sign_by_pub_key(pub_key_32.into(), None, Arc::from(payload_bytes.as_slice()))
+        .sign_by_pub_key(pub_key_32.into(), None, Arc::from(message.as_slice()))
         .await
         .map_err(RuntimeError::Lair)?;
 
@@ -164,6 +220,7 @@ pub fn build_auth_material(
         "pubKey": pubkey_b64url,
         "payload": payload_b64url,
         "signature": signature_b64url,
+        "scheme": SIGNING_SCHEME,
     });
     BASE64_STANDARD.encode(auth_body.to_string().as_bytes())
 }
@@ -180,6 +237,7 @@ pub async fn try_authenticate(
         "pubKey": pubkey_b64url,
         "payload": payload_b64url,
         "signature": signature_b64url,
+        "scheme": SIGNING_SCHEME,
     });
 
     let client = reqwest::Client::new();
@@ -234,7 +292,20 @@ pub async fn perform_auth_flow(
         }
     };
 
-    let signature_b64url = sign_challenge(keystore, &agent_key, &payload_b64url).await?;
+    let challenge = match Challenge::decode(&payload_b64url) {
+        Ok(c) => c,
+        Err(e) => {
+            log::warn!("hc-auth: Auth server sent an unusable challenge: {e}");
+            return Ok(AuthFlowResult {
+                status: HcAuthStatus::Failed(format!("Unusable challenge: {e}")),
+                auth_material: None,
+                agent_key,
+                raw_ed25519_b64url,
+            });
+        }
+    };
+
+    let signature_b64url = sign_challenge(keystore, &agent_key, &challenge).await?;
 
     let status = match try_authenticate(
         &config.auth_server_url,
@@ -271,4 +342,101 @@ pub async fn perform_auth_flow(
         agent_key,
         raw_ed25519_b64url,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use lair_keystore_api::types::SharedLockedArray;
+    use std::sync::Mutex;
+    use tempfile::TempDir;
+
+    async fn spawn_keystore(dir: &TempDir) -> MetaLairClient {
+        let passphrase: SharedLockedArray = Arc::new(Mutex::new(
+            lair_keystore_api::dependencies::sodoken::LockedArray::from(vec![0; 4]),
+        ));
+        holochain_keystore::lair_keystore::spawn_lair_keystore_in_proc(
+            &dir.path().join("lair-keystore-config.yaml"),
+            passphrase,
+        )
+        .await
+        .expect("in-proc lair must spawn")
+    }
+
+    fn challenge_b64url(bytes: &[u8]) -> String {
+        BASE64_URL_SAFE_NO_PAD.encode(bytes)
+    }
+
+    #[test]
+    fn signing_message_is_prefix_then_challenge() {
+        let challenge = Challenge([7u8; CHALLENGE_LEN]);
+        let message = challenge.signing_message();
+        assert_eq!(
+            &message[..CHALLENGE_SIGNING_PREFIX.len()],
+            CHALLENGE_SIGNING_PREFIX
+        );
+        assert_eq!(&message[CHALLENGE_SIGNING_PREFIX.len()..], &challenge.0);
+        // A msgpack map or array marker byte starts every serialized action;
+        // the prefix must never look like one.
+        assert!(CHALLENGE_SIGNING_PREFIX[0].is_ascii_alphabetic());
+    }
+
+    #[test]
+    fn challenges_of_the_wrong_length_are_refused_before_signing() {
+        // Long enough to be a serialized action, and a zome-call-hash-sized
+        // payload with one byte missing: neither is a challenge.
+        for wrong in [vec![0x80u8; 200], vec![1u8; CHALLENGE_LEN - 1], vec![]] {
+            let result = Challenge::decode(&challenge_b64url(&wrong));
+            assert!(
+                matches!(result, Err(RuntimeError::HcAuth(ref m)) if m.contains("32 bytes")),
+                "expected a length error, got {result:?}"
+            );
+        }
+        assert!(matches!(
+            Challenge::decode("not*base64url"),
+            Err(RuntimeError::HcAuth(_))
+        ));
+        let right = [9u8; CHALLENGE_LEN];
+        assert_eq!(
+            Challenge::decode(&challenge_b64url(&right)).unwrap(),
+            Challenge(right)
+        );
+    }
+
+    #[test]
+    fn requests_name_the_signing_scheme() {
+        let material = build_auth_material("pk", "payload", "sig");
+        let body: serde_json::Value =
+            serde_json::from_slice(&BASE64_STANDARD.decode(material).unwrap()).unwrap();
+        assert_eq!(body["scheme"], SIGNING_SCHEME);
+        assert_eq!(body["pubKey"], "pk");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn challenge_signature_covers_the_prefixed_message_not_the_raw_bytes() {
+        let dir = TempDir::new().unwrap();
+        let keystore = spawn_keystore(&dir).await;
+        let agent_key = get_or_create_auth_key(&keystore, dir.path()).await.unwrap();
+
+        let challenge = Challenge([42u8; CHALLENGE_LEN]);
+        let signature_b64 = sign_challenge(&keystore, &agent_key, &challenge)
+            .await
+            .expect("a 32-byte challenge must sign");
+
+        let signature: [u8; 64] = BASE64_URL_SAFE_NO_PAD
+            .decode(signature_b64)
+            .unwrap()
+            .try_into()
+            .unwrap();
+        let pub_key: [u8; 32] = agent_key.get_raw_32().try_into().unwrap();
+
+        assert!(
+            sodoken::sign::verify_detached(&signature, &challenge.signing_message(), &pub_key),
+            "signature must verify against the domain-separated message"
+        );
+        assert!(
+            !sodoken::sign::verify_detached(&signature, &challenge.0, &pub_key),
+            "signature must not be a valid signature over the server's raw bytes"
+        );
+    }
 }
