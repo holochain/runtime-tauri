@@ -11,6 +11,15 @@
   runtime-tauri's. It rewrites `flake.nix` only when it is `hc-scaffold`'s and
   otherwise leaves it for the manual steps in its README. `init` only; no `update`
   yet.
+- `create-holochain-tauri` ships a restrictive `csp` instead of `csp: null`:
+  script from the app only plus `'wasm-unsafe-eval'` for libsodium, no remote
+  or inline script, `style-src-attr 'unsafe-inline'` because Tauri's style
+  nonces would otherwise cancel `'unsafe-inline'` for `style` attributes, and
+  `connect-src` limited to Tauri IPC (the legacy `use_app_websocket` path also
+  needs `ws://localhost:*`). Tauri only applies a CSP to pages it serves, so
+  `tauri dev` against a Vite `devUrl` runs without one. The example app ships
+  the same policy, which its dev build does apply, and turns `withGlobalTauri`
+  off, invoking its `report` command through `@tauri-apps/api` instead.
 - Startup helpers, extracted from Emergence so each app stops carrying its own
   copy: `tauri_plugin_hc::app_paths` (production and per-dev-instance data
   directories), `UserNetworkConfig` with the `get_`/`default_`/`set_user_network_config`

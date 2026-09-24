@@ -3,11 +3,12 @@
 // zome calls, and receive a signal. With the plugin's default direct mode this
 // all flows over Tauri IPC — no app websocket.
 import { AppWebsocket } from "@holochain/client";
+import { invoke } from "@tauri-apps/api/core";
 
 const report = (step, ok, detail) => {
-  try {
-    window.__TAURI__?.core?.invoke("report", { step, ok, detail });
-  } catch (_) {}
+  // Reported over IPC rather than a `withGlobalTauri` global, so nothing on
+  // `window` hands a script the Tauri API.
+  invoke("report", { step, ok, detail }).catch(() => {});
 };
 const show = (id, text, ok) => {
   const el = document.getElementById(id);
