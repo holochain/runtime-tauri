@@ -14,7 +14,7 @@ It is built on [`holochain-conductor-runtime`](../runtime) and exposes it throug
 
 ## Permissions
 
-`hc:default` grants `allow-sign-zome-call` and `allow-app-request`. `sign_payload` is deliberately outside it: `sign_zome_call` signs the hash of a well-formed `ZomeCallParams`, so what it produces is only usable as the call it describes, while `sign_payload` signs caller-chosen bytes with no such domain separation. A capability has to name `hc:allow-sign-payload` itself.
+`hc:default` grants `allow-sign-zome-call`, `allow-app-request`, `allow-get-user-network-config` and `allow-default-user-network-config`. `sign_payload` and `set_user_network_config` are deliberately outside it and a capability has to name `hc:allow-sign-payload` or `hc:allow-set-user-network-config` for the one window that needs them; [permissions/default.toml](permissions/default.toml) says why.
 
 The plugin identifier `hc` is what goes in capability files and `plugin:hc|…` invokes. The webview-facing names are unchanged Holochain names rather than plugin names: the injected global is `__HC_TAURI_HOLOCHAIN__` (which `@holochain/client` looks for) and events use the `holochain://` scheme.
 
@@ -50,11 +50,6 @@ let paths = tauri_plugin_hc::app_paths(APP_ID, env!("CARGO_PKG_AUTHORS"))?;
 
 tauri::Builder::default()
     .manage(tauri_plugin_hc::UserNetworkConfigPath(paths.user_network_config.clone()))
-    .invoke_handler(tauri::generate_handler![
-        tauri_plugin_hc::get_user_network_config,
-        tauri_plugin_hc::default_user_network_config,
-        tauri_plugin_hc::set_user_network_config,
-    ])
     .plugin(tauri_plugin_hc::init(
         vec_to_locked(vec![]),
         HolochainPluginConfig::new(paths.holochain_dir.clone(), network_config(&paths)),
@@ -78,9 +73,11 @@ tauri::Builder::default()
   a lock file, so several dev agents can run side by side. It rejects a data
   directory too long for lair's socket (about 107 bytes).
 - `UserNetworkConfig::apply_saved` overrides the app's bootstrap and relay URLs
-  with ones the user saved. `get_user_network_config`,
-  `default_user_network_config` and `set_user_network_config` are app commands
-  for a settings screen; setting restarts the app.
+  with ones the user saved. `plugin:hc|get_user_network_config`,
+  `plugin:hc|default_user_network_config` and `plugin:hc|set_user_network_config`
+  are plugin commands for a settings screen, reading and writing the file named
+  by the managed `UserNetworkConfigPath`; setting restarts the app and needs
+  `hc:allow-set-user-network-config` in the window's capability.
 - `on_ready` runs startup work once the conductor is up, including when it came
   up before `on_ready` was called, and only once.
 - `Runtime::install_app_if_missing` installs and enables the hApp on first run

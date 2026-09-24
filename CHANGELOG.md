@@ -19,6 +19,16 @@
   `Runtime::install_app_if_missing`, which `setup_app` now uses, and fails boot
   with `DataRootPathTooLong` when lair's socket path would exceed the Unix socket
   limit instead of lair's `path must be shorter than SUN_LEN`.
+- `get_`, `default_` and `set_user_network_config` are plugin commands now
+  (`plugin:hc|…`), so Tauri's ACL applies to them. `hc:default` includes the
+  two reads; `set`, which repoints bootstrap and relay and restarts, needs
+  `hc:allow-set-user-network-config` on the window that hosts the settings
+  screen. Apps drop them from `generate_handler!`, keep
+  `.manage(UserNetworkConfigPath(..))`, and invoke them with the `plugin:hc|`
+  prefix; emergence does all three when it next bumps the plugin (Rust fails
+  to compile until then, the Svelte `invoke` calls fail at run time). Calling
+  them without that state is `Error::UserNetworkConfigPathNotManaged` rather
+  than a panic.
 - `tauri-plugin-hc` adds `dev_network_config(url)` and `dev_network_url!()` for
   local dev networks: one `kitsune2-bootstrap-srv` as bootstrap server and iroh
   relay, plain-HTTP relay allowed, and kitsune2's gossip `initiateBurstFactor`
