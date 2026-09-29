@@ -109,12 +109,22 @@ pub(crate) fn set_user_network_config<R: Runtime>(
     bootstrap_url: Url2,
     relay_url: Url2,
 ) -> Result<()> {
+    save_user_network_config(&app, bootstrap_url, relay_url)?;
+    app.restart();
+}
+
+/// Everything `set_user_network_config` does before restarting, apart so tests
+/// can run it without restarting the test process.
+fn save_user_network_config<R: Runtime>(
+    app: &AppHandle<R>,
+    bootstrap_url: Url2,
+    relay_url: Url2,
+) -> Result<()> {
     UserNetworkConfig {
         bootstrap_url: Some(bootstrap_url),
         relay_url: Some(relay_url),
     }
-    .write(&config_path(&app)?)?;
-    app.restart();
+    .write(&config_path(app)?)
 }
 
 #[cfg(test)]
@@ -166,6 +176,75 @@ mod tests {
         assert!(
             matches!(result, Err(Error::UserNetworkConfigPathNotManaged)),
             "expected a managed-state error, got {result:?}"
+        );
+
+        // Fails before it would restart, so the command itself can be called.
+        let result = set_user_network_config(
+            app.handle().clone(),
+            Url2::parse("https://bootstrap.example.org"),
+            Url2::parse("https://relay.example.org"),
+        );
+        assert!(
+            matches!(result, Err(Error::UserNetworkConfigPathNotManaged)),
+            "expected a managed-state error, got {result:?}"
+        );
+    }
+
+    #[test]
+    fn set_saves_both_urls_to_the_managed_path() {
+        use tauri::test::{mock_builder, mock_context, noop_assets};
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("nested").join("user-network-config.json");
+        let app = mock_builder()
+            .manage(UserNetworkConfigPath(path.clone()))
+            .build(mock_context(noop_assets()))
+            .expect("mock app builds");
+
+        save_user_network_config(
+            app.handle(),
+            Url2::parse("https://bootstrap.example.org"),
+            Url2::parse("https://relay.example.org"),
+        )
+        .unwrap();
+        assert_eq!(
+            get_user_network_config(app.handle().clone()).unwrap(),
+            Some(UserNetworkConfig {
+                bootstrap_url: Some(Url2::parse("https://bootstrap.example.org")),
+                relay_url: Some(Url2::parse("https://relay.example.org")),
+            })
+        );
+    }
+
+    #[test]
+    fn default_offers_holochains_urls() {
+        let defaults = NetworkConfig::default();
+        assert_eq!(
+            default_user_network_config(),
+            UserNetworkConfig {
+                bootstrap_url: Some(defaults.bootstrap_url),
+                relay_url: Some(defaults.relay_url),
+            }
+        );
+    }
+
+    #[test]
+    fn default_permissions_leave_out_set() {
+        #[derive(Deserialize)]
+        struct DefaultPermissions {
+            default: DefaultSet,
+        }
+        #[derive(Deserialize)]
+        struct DefaultSet {
+            permissions: Vec<String>,
+        }
+        let file: DefaultPermissions =
+            toml::from_str(include_str!("../permissions/default.toml")).unwrap();
+        let granted = file.default.permissions;
+        assert!(granted.contains(&"allow-get-user-network-config".to_string()));
+        assert!(granted.contains(&"allow-default-user-network-config".to_string()));
+        assert!(
+            !granted.contains(&"allow-set-user-network-config".to_string()),
+            "hc:default must not let every window repoint the network: {granted:?}"
         );
     }
 
