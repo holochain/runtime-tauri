@@ -1,5 +1,12 @@
 # Unreleased
 
+- Breaking: the legacy app websocket is removed. It attached an app interface
+  that accepted any origin and injected a reusable, non-expiring token, and no
+  consumer still used it; windows reach the conductor over Tauri IPC only.
+  `WindowOptions::use_app_websocket` and the injected `__HC_LAUNCHER_ENV__` are
+  gone, and `holochain-conductor-runtime` drops `Runtime::ensure_app_websocket`,
+  `Runtime::setup_app` and `AppAuth`. Call `Runtime::install_app_if_missing`
+  where you called `setup_app`.
 - The Makefile is gone; `npm run ci` is what CI runs (`fmt:check`, `lint`, `test`).
   `npm run lint` now builds the example UI first, since `cargo clippy --workspace`
   compiles the example app and Tauri resolves `frontendDist` at compile time. CI

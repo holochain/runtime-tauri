@@ -1,6 +1,6 @@
 //! Integration tests (Approach A): prove the plugin boots a real Holochain
-//! conductor *inside a Tauri app* and serves it both ways — the legacy app
-//! websocket and the new in-process `app_request` IPC path.
+//! conductor *inside a Tauri app* and serves the App API over the in-process
+//! `app_request` IPC path.
 //!
 //! These drive the plugin as a real app would: build a Tauri app with the
 //! plugin and wait for `holochain://ready`. They do not open a webview — the
@@ -63,18 +63,6 @@ fn plugin_boots_conductor_in_tauri_app() {
         let runtime = app.holochain().unwrap().runtime();
 
         install_and_enable_test_happ(&runtime).await;
-
-        // Attach an app interface — this is the websocket the legacy injection
-        // wires a webview to. A real bound port proves the endpoint exists.
-        let app_auth = runtime
-            .ensure_app_websocket(APP_ID.into())
-            .await
-            .expect("ensure_app_websocket failed");
-        assert!(app_auth.port > 0, "expected a bound app interface port");
-        assert!(
-            !app_auth.authentication.token.is_empty(),
-            "expected a non-empty app auth token"
-        );
 
         let apps = runtime.list_apps().await.expect("list_apps failed");
         assert_eq!(apps.len(), 1);
@@ -305,9 +293,9 @@ fn shipped_bundle_matches_rebound_payload_shape() {
     );
 }
 
-/// Both injection modes must take the plugin identifier from the Rust side. A
+/// The injected env must take the plugin identifier from the Rust side. A
 /// literal name baked into the bundle would make the zome-call signer invoke a
-/// plugin the ACL does not know — the legacy websocket path once hardcoded
+/// plugin the ACL does not know — the removed websocket path once hardcoded
 /// `"holochain"`, which broke silently when the identifier became `hc`.
 #[test]
 fn shipped_bundle_does_not_hardcode_a_plugin_name() {
@@ -426,4 +414,15 @@ fn install_app_if_missing_installs_once() {
         assert_eq!(apps.len(), 1);
         assert!(matches!(apps[0].status, AppStatus::Disabled(_)));
     });
+}
+
+/// The legacy app-websocket env is gone from the Rust side; the bundle must not
+/// still define an injector for it.
+#[test]
+fn shipped_bundle_has_no_app_websocket_env() {
+    let bundle = include_str!("../dist-js/holochain-env/index.min.js");
+    assert!(
+        !bundle.contains("__HC_LAUNCHER_ENV__"),
+        "dist-js/holochain-env/index.min.js is stale — run `npm run build` in crates/tauri-plugin-hc"
+    );
 }
