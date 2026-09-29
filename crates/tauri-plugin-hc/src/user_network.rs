@@ -103,20 +103,13 @@ pub(crate) fn default_user_network_config() -> UserNetworkConfig {
 
 /// Save new bootstrap and relay URLs and restart the app so the conductor boots
 /// with them. Outside `hc:default`; see `permissions/default.toml`.
+///
+/// The restart is requested rather than immediate (`restart` on the main thread,
+/// where sync commands run, skips `RunEvent::ExitRequested` and `Exit`), so the
+/// app shuts down through its normal exit path.
 #[tauri::command]
 pub(crate) fn set_user_network_config<R: Runtime>(
     app: AppHandle<R>,
-    bootstrap_url: Url2,
-    relay_url: Url2,
-) -> Result<()> {
-    save_user_network_config(&app, bootstrap_url, relay_url)?;
-    app.restart();
-}
-
-/// Everything `set_user_network_config` does before restarting, apart so tests
-/// can run it without restarting the test process.
-fn save_user_network_config<R: Runtime>(
-    app: &AppHandle<R>,
     bootstrap_url: Url2,
     relay_url: Url2,
 ) -> Result<()> {
@@ -124,7 +117,9 @@ fn save_user_network_config<R: Runtime>(
         bootstrap_url: Some(bootstrap_url),
         relay_url: Some(relay_url),
     }
-    .write(&config_path(app)?)
+    .write(&config_path(&app)?)?;
+    app.request_restart();
+    Ok(())
 }
 
 #[cfg(test)]
@@ -191,7 +186,7 @@ mod tests {
     }
 
     #[test]
-    fn set_saves_both_urls_to_the_managed_path() {
+    fn set_saves_both_urls_then_requests_a_restart() {
         use tauri::test::{mock_builder, mock_context, noop_assets};
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("nested").join("user-network-config.json");
@@ -200,12 +195,18 @@ mod tests {
             .build(mock_context(noop_assets()))
             .expect("mock app builds");
 
-        save_user_network_config(
-            app.handle(),
-            Url2::parse("https://bootstrap.example.org"),
-            Url2::parse("https://relay.example.org"),
-        )
-        .unwrap();
+        // Tauri's mock runtime cannot exit: requesting the restart panics with
+        // `unimplemented!()` in its `request_exit`. That panic is the sign the
+        // command got as far as the restart, and it must come after the write.
+        let handle = app.handle().clone();
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            set_user_network_config(
+                handle,
+                Url2::parse("https://bootstrap.example.org"),
+                Url2::parse("https://relay.example.org"),
+            )
+        }));
+        assert!(result.is_err(), "expected the command to request a restart");
         assert_eq!(
             get_user_network_config(app.handle().clone()).unwrap(),
             Some(UserNetworkConfig {
