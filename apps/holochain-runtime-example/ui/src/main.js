@@ -19,10 +19,8 @@ const show = (id, text, ok) => {
   if (ok !== undefined) report(id, ok, text);
 };
 
-// 1. Prove the plugin injected an env into this webview. Direct mode injects
-// __HC_TAURI_HOLOCHAIN__ (no websocket); legacy mode injects __HC_LAUNCHER_ENV__.
+// 1. Prove the plugin injected its __HC_TAURI_HOLOCHAIN__ env into this webview.
 const tauriEnv = window.__HC_TAURI_HOLOCHAIN__;
-const wsEnv = window.__HC_LAUNCHER_ENV__;
 if (tauriEnv) {
   show(
     "env",
@@ -34,8 +32,6 @@ if (tauriEnv) {
       !!tauriEnv.subscribeSignals,
     true
   );
-} else if (wsEnv && wsEnv.APP_INTERFACE_PORT) {
-  show("env", "websocket — APP_INTERFACE_PORT=" + wsEnv.APP_INTERFACE_PORT, true);
 } else {
   show("env", "no holochain env injected", false);
 }

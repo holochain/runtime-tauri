@@ -1,9 +1,6 @@
 use crate::hc_auth::{self, HcAuthConfig, HcAuthStatus};
-use crate::{
-    AppAuth, AppInstallOutcome, RuntimeConfig, RuntimeError, RuntimeResult, DEVICE_SEED_LAIR_TAG,
-};
-use holochain::conductor::api::IssueAppAuthenticationTokenPayload;
-use holochain::conductor::api::{AppAuthenticationTokenIssued, ZomeCallParamsSigned};
+use crate::{AppInstallOutcome, RuntimeConfig, RuntimeError, RuntimeResult, DEVICE_SEED_LAIR_TAG};
+use holochain::conductor::api::ZomeCallParamsSigned;
 use holochain::{
     conductor::{
         api::{
@@ -18,22 +15,16 @@ use holochain::{
 use holochain_keystore::MetaLairClient;
 use holochain_types::network::HolochainTransportStats;
 use holochain_types::signal::Signal;
-use holochain_types::websocket::AllowedOrigins;
 use lair_keystore_api::types::SharedLockedArray;
 use log::{debug, error};
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 use tokio::sync::broadcast;
-
-/// Map of app ids to their associated app websocket & authentication
-pub type AppAuths = Arc<RwLock<HashMap<InstalledAppId, AppAuth>>>;
 
 /// Slim wrapper around holochain Conductor with calls wrapping AdminInterfaceApi requests
 #[derive(Clone)]
 pub struct Runtime {
     conductor: ConductorHandle,
-    app_auths: AppAuths,
 
     // --- Phase 3: controllable boot / hc-auth / restart-keeping-lair ---
     /// The lair keystore client, spawned in-proc *before* the conductor and
@@ -237,7 +228,6 @@ impl Runtime {
 
         Ok(Self {
             conductor,
-            app_auths: Arc::new(RwLock::new(HashMap::new())),
             lair_client,
             device_agent_key,
             passphrase,
@@ -615,7 +605,6 @@ impl Runtime {
 
         Ok(Runtime {
             conductor,
-            app_auths: Arc::new(RwLock::new(HashMap::new())),
             lair_client: self.lair_client.clone(),
             device_agent_key: self.device_agent_key.clone(),
             passphrase: self.passphrase.clone(),
@@ -673,72 +662,13 @@ impl Runtime {
         Ok(*signature.0)
     }
 
-    pub async fn ensure_app_websocket(
-        &self,
-        installed_app_id: InstalledAppId,
-    ) -> RuntimeResult<AppAuth> {
-        let app_auths = self.app_auths.read().unwrap().clone();
-        match app_auths.get(&installed_app_id) {
-            Some(app_websocket) => Ok(app_websocket.clone()),
-            None => {
-                let authentication = self
-                    .issue_app_authentication_token(IssueAppAuthenticationTokenPayload {
-                        installed_app_id: installed_app_id.clone(),
-                        expiry_seconds: 0,
-                        single_use: false,
-                    })
-                    .await?;
-                let port = self
-                    .attach_app_interface(None, AllowedOrigins::Any, Some(installed_app_id.clone()))
-                    .await?;
-                let app_auth = AppAuth {
-                    authentication,
-                    port,
-                };
-
-                let mut app_auths = self.app_auths.write().unwrap();
-                app_auths.insert(installed_app_id, app_auth.clone());
-
-                Ok(app_auth)
-            }
-        }
-    }
-
-    /// Full process to setup an app
-    ///
-    /// Check if app is installed, if not install it, then optionally enable it.
-    /// Then ensure there is an app websocket and authentication for it.
-    ///
-    /// If an app is already installed, it will not be enabled. It is only enabled after a successful install.
-    /// The reasoning is that if an app is disabled after that point,
-    /// it is assumed to have been manually disabled in the admin interface, which we don't want to override.
-    pub async fn setup_app(
-        &self,
-        payload: InstallAppPayload,
-        enable_after_install: bool,
-    ) -> RuntimeResult<AppAuth> {
-        // This is a temporary workaround because we cannot clone AppBundleSource,
-        // which is needed to read the actual app name from the manifest
-        // See https://github.com/holochain/holochain/pull/4882
-        let installed_app_id = payload
-            .installed_app_id
-            .clone()
-            .ok_or(RuntimeError::InstalledAppIdNotSpecified)?;
-
-        self.install_app_if_missing(payload, enable_after_install)
-            .await?;
-
-        self.ensure_app_websocket(installed_app_id).await
-    }
-
     /// Install the app in `payload` unless an app with its `installed_app_id` is
     /// already installed, and enable it after a fresh install if
     /// `enable_after_install` is set.
     ///
     /// An app that is already installed is left as it is, including when it is
     /// disabled: that is assumed to have been done deliberately, and is not
-    /// overridden. This is [`Self::setup_app`] without the app websocket, for apps
-    /// whose UI reaches the conductor over in-process IPC.
+    /// overridden.
     pub async fn install_app_if_missing(
         &self,
         payload: InstallAppPayload,
@@ -775,9 +705,9 @@ impl Runtime {
     /// calls directly.
     ///
     /// The caller is responsible for scoping `installed_app_id` to what the
-    /// requester is allowed to access — the app websocket path uses a per-app
-    /// auth token for this; the in-process path must bind it some other way
-    /// (e.g. the calling window).
+    /// requester is allowed to access. An app websocket would use a per-app auth
+    /// token for this; here the caller must bind it some other way (e.g. the
+    /// calling window).
     pub async fn handle_app_request(
         &self,
         installed_app_id: InstalledAppId,
@@ -838,39 +768,6 @@ impl Runtime {
             .handle_request(Ok(request))
             .await?)
     }
-
-    async fn issue_app_authentication_token(
-        &self,
-        payload: IssueAppAuthenticationTokenPayload,
-    ) -> RuntimeResult<AppAuthenticationTokenIssued> {
-        let response = self
-            .req_admin_api(AdminRequest::IssueAppAuthenticationToken(payload))
-            .await?;
-        match response {
-            AdminResponse::AppAuthenticationTokenIssued(auth) => Ok(auth),
-            fail => Err(RuntimeError::AdminApiBadResponse(Box::new(fail))),
-        }
-    }
-
-    async fn attach_app_interface(
-        &self,
-        port: Option<u16>,
-        allowed_origins: AllowedOrigins,
-        installed_app_id: Option<InstalledAppId>,
-    ) -> RuntimeResult<u16> {
-        let response = self
-            .req_admin_api(AdminRequest::AttachAppInterface {
-                port,
-                allowed_origins,
-                installed_app_id,
-                danger_bind_addr: None,
-            })
-            .await?;
-        match response {
-            AdminResponse::AppInterfaceAttached { port } => Ok(port),
-            fail => Err(RuntimeError::AdminApiBadResponse(Box::new(fail))),
-        }
-    }
 }
 
 #[cfg(test)]
@@ -890,6 +787,7 @@ mod test {
     use holochain_types::prelude::Timestamp;
 
     use sodoken::LockedArray;
+    use std::collections::HashMap;
     use std::sync::Mutex;
     use std::time::Duration;
     use tempfile::TempDir;
@@ -1641,64 +1539,6 @@ mod test {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn test_ensure_app_websocket() {
-        let tmp_dir = TempDir::new().unwrap();
-        let tmp_dir_path = tmp_dir.path().to_path_buf();
-        let runtime = Runtime::new(
-            Arc::new(Mutex::new(LockedArray::from(vec![0, 0, 0, 0]))),
-            RuntimeConfig {
-                data_root_path: tmp_dir_path,
-                network: RuntimeNetworkConfig::default(),
-            },
-        )
-        .await
-        .unwrap();
-
-        // An app only gets one app ws
-        let app_websocket = runtime
-            .ensure_app_websocket("my-app-1".into())
-            .await
-            .unwrap();
-        let app_websocket_2 = runtime
-            .ensure_app_websocket("my-app-1".into())
-            .await
-            .unwrap();
-        let app_websocket_3 = {
-            let all_app_auths = runtime.app_auths.read().unwrap();
-            all_app_auths.get("my-app-1").unwrap().clone()
-        };
-        assert_eq!(app_websocket.port, app_websocket_2.port);
-        assert_eq!(
-            app_websocket.authentication.token,
-            app_websocket_2.authentication.token
-        );
-        assert_eq!(
-            app_websocket.authentication.expires_at,
-            app_websocket_2.authentication.expires_at
-        );
-        assert_eq!(app_websocket_3.port, app_websocket.port);
-        assert_eq!(
-            app_websocket_3.authentication.token,
-            app_websocket.authentication.token
-        );
-        assert_eq!(
-            app_websocket_3.authentication.expires_at,
-            app_websocket.authentication.expires_at
-        );
-
-        // Different apps get different ports and tokens
-        let app_websocket_4 = runtime
-            .ensure_app_websocket("my-app-2".into())
-            .await
-            .unwrap();
-        assert_ne!(app_websocket_4.port, app_websocket.port);
-        assert_ne!(
-            app_websocket_4.authentication.token,
-            app_websocket.authentication.token
-        );
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
     async fn test_api_err_bad_response() {
         let tmp_dir = TempDir::new().unwrap();
         let tmp_dir_path = tmp_dir.path().to_path_buf();
@@ -1718,7 +1558,7 @@ mod test {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn test_setup_app_installs_when_app_id_different() {
+    async fn test_install_app_if_missing_installs_when_app_id_different() {
         let tmp_dir = TempDir::new().unwrap();
         let tmp_dir_path = tmp_dir.path().to_path_buf();
         let runtime = Runtime::new(
@@ -1732,7 +1572,7 @@ mod test {
         .unwrap();
 
         let res = runtime
-            .setup_app(
+            .install_app_if_missing(
                 InstallAppPayload {
                     source: AppBundleSource::Bytes(test_happ_bytes().into()),
                     agent_key: None,
@@ -1751,7 +1591,7 @@ mod test {
         assert_eq!(apps.len(), 1);
 
         let res = runtime
-            .setup_app(
+            .install_app_if_missing(
                 InstallAppPayload {
                     source: AppBundleSource::Bytes(test_happ_bytes().into()),
                     agent_key: None,
@@ -1771,7 +1611,7 @@ mod test {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn test_setup_app_does_not_enable_after_install() {
+    async fn test_install_app_if_missing_does_not_enable_after_install() {
         let tmp_dir = TempDir::new().unwrap();
         let tmp_dir_path = tmp_dir.path().to_path_buf();
         let runtime = Runtime::new(
@@ -1785,7 +1625,7 @@ mod test {
         .unwrap();
 
         let res = runtime
-            .setup_app(
+            .install_app_if_missing(
                 InstallAppPayload {
                     source: AppBundleSource::Bytes(test_happ_bytes().into()),
                     agent_key: None,
@@ -1807,7 +1647,7 @@ mod test {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn test_setup_app_does_enable_after_install() {
+    async fn test_install_app_if_missing_does_enable_after_install() {
         let tmp_dir = TempDir::new().unwrap();
         let tmp_dir_path = tmp_dir.path().to_path_buf();
         let runtime = Runtime::new(
@@ -1821,7 +1661,7 @@ mod test {
         .unwrap();
 
         let res = runtime
-            .setup_app(
+            .install_app_if_missing(
                 InstallAppPayload {
                     source: AppBundleSource::Bytes(test_happ_bytes().into()),
                     agent_key: None,

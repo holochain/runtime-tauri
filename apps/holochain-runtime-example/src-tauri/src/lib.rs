@@ -107,9 +107,7 @@ async fn open_main_window(handle: AppHandle) -> Result<(), Box<dyn Error>> {
 
     // Install and enable the forum hApp on first run only. An app that is
     // already installed is left in whatever state it is in, so one a user
-    // disabled stays disabled. This deliberately avoids `Runtime::setup_app`,
-    // which also attaches an app websocket interface: the window below reaches
-    // the conductor over Tauri IPC, so that port would sit open and unused.
+    // disabled stays disabled.
     if !runtime.is_app_installed(APP_ID.into()).await? {
         runtime
             .install_app(InstallAppPayload {
@@ -125,9 +123,8 @@ async fn open_main_window(handle: AppHandle) -> Result<(), Box<dyn Error>> {
         runtime.enable_app(APP_ID.into()).await?;
     }
 
-    // Open a window bound to the app. With `use_app_websocket` left at its
-    // default (false), the plugin injects `__HC_TAURI_HOLOCHAIN__` and serves
-    // the App API and zome-call signing over Tauri IPC.
+    // Open a window bound to the app. The plugin injects `__HC_TAURI_HOLOCHAIN__`
+    // and serves the App API and zome-call signing over Tauri IPC.
     plugin
         .main_window_builder(
             "main",
