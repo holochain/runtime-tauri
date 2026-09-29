@@ -465,11 +465,14 @@ impl<R: TauriRuntime> HolochainPlugin<R> {
     /// navigation (or, on Android, where the webview does not report its initial
     /// load as a navigation, the first page load) fixes the window's origin, and
     /// every later navigation is checked with [`navigation_allowed`], refused and
-    /// logged when it fails. `window.open` and `target="_blank"` open nothing;
-    /// a hApp UI opens external links through the opener plugin. `main_window_builder`
-    /// applies this itself; call it for windows the app builds directly, and do
-    /// not chain another `on_navigation` or `on_new_window` after it, since
-    /// Tauri keeps only the last handler of each.
+    /// logged when it fails. On desktop `window.open` and `target="_blank"` open
+    /// nothing. Tauri does not support `on_new_window` on mobile: Android loads
+    /// the target in the same webview, where the navigation check still
+    /// applies, and iOS opens nothing. A hApp UI opens external links through
+    /// the opener plugin. `main_window_builder` applies this itself; call it for
+    /// windows the app builds directly, and do not chain another `on_navigation`
+    /// or `on_new_window` after it, since Tauri keeps only the last handler of
+    /// each.
     pub fn lock_navigation<'a, M: Manager<R>>(
         &self,
         label: impl Into<String>,
