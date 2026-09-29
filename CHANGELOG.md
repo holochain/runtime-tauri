@@ -37,7 +37,9 @@
   prefix; emergence does all three when it next bumps the plugin (Rust fails
   to compile until then, the Svelte `invoke` calls fail at run time). Calling
   them without that state is `Error::UserNetworkConfigPathNotManaged` rather
-  than a panic.
+  than a panic. `set` now requests the restart (`request_restart`), so it
+  returns `Ok` to the UI and the app exits through `RunEvent::ExitRequested`
+  and `Exit` instead of skipping them.
 - `tauri-plugin-hc` adds `dev_network_config(url)` and `dev_network_url!()` for
   local dev networks: one `kitsune2-bootstrap-srv` as bootstrap server and iroh
   relay, plain-HTTP relay allowed, and kitsune2's gossip `initiateBurstFactor`
