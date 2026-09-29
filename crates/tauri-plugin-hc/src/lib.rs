@@ -5,8 +5,7 @@
 //! it to a Tauri app via the [`HolochainExt`] trait. A webview opened with
 //! [`HolochainPlugin::main_window_builder`] is bound to an installed app and
 //! reaches the conductor over Tauri IPC, so `@holochain/client` in the UI needs
-//! no loopback websocket; [`WindowOptions`] can still select the app-websocket
-//! path per window.
+//! no loopback websocket.
 //!
 //! The Tauri plugin identifier is `hc`: permissions are `hc:default` and
 //! `hc:allow-*`, and commands are invoked as `plugin:hc|<command>`. It has to
@@ -157,10 +156,6 @@ pub struct WindowOptions {
     pub url: Option<WebviewUrl>,
     /// Window title (desktop).
     pub title: Option<String>,
-    /// Use the legacy app-websocket wiring (attach an app interface and inject
-    /// `__HC_LAUNCHER_ENV__`) instead of direct Tauri IPC. Defaults to `false`
-    /// (direct), which needs no loopback websocket.
-    pub use_app_websocket: bool,
 }
 
 /// Per-window first-loaded origins, shared with the closures that consult them.
@@ -230,7 +225,7 @@ pub struct HolochainPlugin<R: TauriRuntime> {
 
 impl<R: TauriRuntime> HolochainPlugin<R> {
     /// The underlying conductor runtime. The full lifecycle API
-    /// (`install_app`, `enable_app`, `setup_app`, `ensure_app_websocket`,
+    /// (`install_app`, `enable_app`, `install_app_if_missing`,
     /// `sign_zome_call`, `import_key_seed`, ...) lives here — this plugin is a
     /// thin Tauri adapter, not a re-implementation.
     ///
@@ -530,12 +525,12 @@ impl<R: TauriRuntime> HolochainPlugin<R> {
 
     /// Build a webview window wired to the in-process conductor for `app_id`.
     ///
-    /// By default this uses **direct Tauri IPC**: the window is bound to the app
-    /// (so `app_request` calls are scoped to it), the app's signals are
-    /// forwarded to it as [`EVENT_SIGNAL`], and `__HC_TAURI_HOLOCHAIN__` is
+    /// The window reaches the conductor over **direct Tauri IPC**: it is bound
+    /// to the app (so `app_request` calls are scoped to it), the app's signals
+    /// are forwarded to it as [`EVENT_SIGNAL`], and `__HC_TAURI_HOLOCHAIN__` is
     /// injected so `@holochain/client` routes the App API through IPC with no
-    /// loopback websocket. Set [`WindowOptions::use_app_websocket`] to fall back
-    /// to the legacy `__HC_LAUNCHER_ENV__` websocket wiring instead.
+    /// loopback websocket. `None` opens an app-less window (dashboard) that
+    /// [`Self::rebind_window`] can bind later without recreating the OS window.
     ///
     /// The window is confined to the origin it first loads from (see
     /// [`Self::lock_navigation`], which this applies).
@@ -552,31 +547,14 @@ impl<R: TauriRuntime> HolochainPlugin<R> {
             .url
             .unwrap_or_else(|| WebviewUrl::App("index.html".into()));
 
-        let env_script = if options.use_app_websocket {
-            // Legacy: attach an app websocket and point @holochain/client at it.
-            // This path requires a bound app.
-            let app_id = app_id.ok_or(Error::WindowNotBound)?;
-            let app_auth = self
-                .try_runtime()?
-                .ensure_app_websocket(app_id.clone())
+        if let Some(app_id) = &app_id {
+            self.bind_window(label.clone(), app_id.clone());
+            self.spawn_signal_forwarder(label.clone(), app_id.clone())
                 .await?;
-            format!(
-                r#"window.injectHolochainClientEnv("{}", {}, {:?}, "{}");"#,
-                app_id, app_auth.port, app_auth.authentication.token, PLUGIN_NAME,
-            )
-        } else {
-            // Direct: inject the IPC env (+ the rebound listener). If an app is
-            // given, bind the window and forward its signals; `None` opens an
-            // app-less window (dashboard) that `rebind_window` can bind later
-            // without recreating the OS window.
-            if let Some(app_id) = &app_id {
-                self.bind_window(label.clone(), app_id.clone());
-                self.spawn_signal_forwarder(label.clone(), app_id.clone())
-                    .await?;
-            }
-            let injected = app_id.unwrap_or_default();
-            format!(r#"window.injectHolochainTauriEnv({injected:?}, "{PLUGIN_NAME}");"#)
-        };
+        }
+        let injected = app_id.unwrap_or_default();
+        let env_script =
+            format!(r#"window.injectHolochainTauriEnv({injected:?}, "{PLUGIN_NAME}");"#);
 
         let window_builder = WebviewWindowBuilder::new(&self.app_handle, label.clone(), url)
             .initialization_script(include_str!("../dist-js/holochain-env/index.min.js"))
