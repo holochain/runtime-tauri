@@ -52,7 +52,7 @@ holochain = { workspace = true }
 holochain_types = { workspace = true }
 tokio = { workspace = true }
 tempfile = { workspace = true }
-toml = "0.9"
+toml = "1.1"
 uuid = { workspace = true }
 test-happ = { path = "../test-happ" }
 # Self-dependency: what turns `test-utils` on for this crate's own test targets.
