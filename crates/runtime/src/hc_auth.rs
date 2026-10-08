@@ -15,17 +15,12 @@
 
 use crate::{RuntimeError, RuntimeResult};
 use base64::prelude::*;
+use hc_auth_types::CHALLENGE_LEN;
 use holochain::prelude::AgentPubKey;
 use holochain_keystore::MetaLairClient;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-
-/// Prefix put before the decoded challenge, so the signature is valid for this purpose only.
-pub const CHALLENGE_SIGNING_PREFIX: &[u8] = b"hc-auth-challenge-v1:";
-
-/// Length in bytes of a decoded challenge: an 8 byte timestamp and a 24 byte nonce.
-const CHALLENGE_LEN: usize = 32;
 
 fn default_true() -> bool {
     true
@@ -136,8 +131,8 @@ pub async fn fetch_challenge(auth_server_url: &str) -> RuntimeResult<String> {
         .map_err(|e| RuntimeError::HcAuth(format!("GET /now body read failed: {e}")))
 }
 
-/// The bytes signed for a challenge: [`CHALLENGE_SIGNING_PREFIX`] followed by the
-/// decoded challenge. A challenge that does not decode to exactly
+/// The bytes signed for a challenge: [`hc_auth_types::challenge_signing_bytes`]
+/// of the decoded challenge. A challenge that does not decode to exactly
 /// [`CHALLENGE_LEN`] bytes is refused, so the server chooses 32 bytes of what is
 /// signed and nothing else.
 fn challenge_signing_bytes(payload_b64url: &str) -> RuntimeResult<Vec<u8>> {
@@ -145,14 +140,14 @@ fn challenge_signing_bytes(payload_b64url: &str) -> RuntimeResult<Vec<u8>> {
         .decode(payload_b64url)
         .map_err(|e| RuntimeError::HcAuth(format!("Invalid payload base64url: {e}")))?;
 
-    if payload_bytes.len() != CHALLENGE_LEN {
-        return Err(RuntimeError::HcAuth(format!(
+    let challenge: [u8; CHALLENGE_LEN] = payload_bytes.try_into().map_err(|bytes: Vec<u8>| {
+        RuntimeError::HcAuth(format!(
             "Challenge must be {CHALLENGE_LEN} bytes, got {}",
-            payload_bytes.len()
-        )));
-    }
+            bytes.len()
+        ))
+    })?;
 
-    Ok([CHALLENGE_SIGNING_PREFIX, payload_bytes.as_slice()].concat())
+    Ok(hc_auth_types::challenge_signing_bytes(&challenge))
 }
 
 /// Sign the prefixed challenge payload with `agent_key` via lair; returns the
@@ -299,6 +294,7 @@ pub async fn perform_auth_flow(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use hc_auth_types::CHALLENGE_SIGNING_PREFIX;
 
     #[test]
     fn signing_bytes_are_the_prefix_then_the_challenge() {

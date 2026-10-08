@@ -7,9 +7,10 @@
   gone, and `holochain-conductor-runtime` drops `Runtime::ensure_app_websocket`,
   `Runtime::setup_app` and `AppAuth`. Call `Runtime::install_app_if_missing`
   where you called `setup_app`.
-- **Breaking:** the hc-auth flow signs `hc-auth-challenge-v1:` followed by the
+- **Breaking:** the hc-auth flow signs a fixed prefix followed by the
   challenge, so the signature is valid for this purpose only, and refuses a
-  challenge that is not 32 bytes. This needs an hc-auth-server that verifies the
+  challenge that is not 32 bytes. The prefix comes from the `hc-auth-types`
+  crate in `holochain/hc-auth-server`. This needs an hc-auth-server that verifies the
   prefixed form; an older server answers `401`.
 - The Makefile is gone; `npm run ci` is what CI runs (`fmt:check`, `lint`, `test`).
   `npm run lint` now builds the example UI first, since `cargo clippy --workspace`

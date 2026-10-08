@@ -24,6 +24,9 @@ lair_keystore_api = { workspace = true }
 # hc-auth: HTTP challenge/authenticate against the auth server + base64 material.
 # rustls-tls to match the workspace's rustls/aws-lc crypto stack (no native-tls).
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+# The challenge prefix and length, shared with the server. Not on crates.io.
+# The rev is the head of holochain/hc-auth-server#34; move it to the merge commit.
+hc-auth-types = { git = "https://github.com/holochain/hc-auth-server", rev = "5e2204c90e5ec01082e5091b3fc4a085ed68486d" }
 base64 = { workspace = true }
 sodoken = { workspace = true }
 url2 = { workspace = true }
