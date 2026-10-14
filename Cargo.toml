@@ -16,6 +16,7 @@ homepage = "https://github.com/holochain/runtime-tauri"
 repository = "https://github.com/holochain/runtime-tauri"
 keywords = ["holochain", "tauri", "p2p", "desktop", "mobile"]
 license = "MIT OR Apache-2.0"
+version = "0.1.0"
 
 [workspace.dependencies]
 # default-features = false so the wasm backend is not pinned here: the defaults

@@ -1,6 +1,5 @@
 [package]
 name = "tauri-plugin-hc"
-version = "0.1.0"
 exclude = ["/examples", "/node_modules"]
 links = "tauri-plugin-hc"
 description = "Tauri plugin that runs an in-process Holochain conductor (FFI-free, desktop + mobile)"
@@ -11,6 +10,7 @@ readme = "README.md"
 keywords.workspace = true
 edition.workspace = true
 license.workspace = true
+version.workspace = true
 
 [dependencies]
 # The wasm backend (cranelift vs. wasmi on iOS) is selected by target cfg in

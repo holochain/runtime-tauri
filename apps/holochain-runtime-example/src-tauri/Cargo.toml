@@ -1,9 +1,9 @@
 [package]
 name = "holochain-runtime-example"
-version = "0.1.0"
 description = "Example app for the in-process tauri-plugin-hc (desktop, Android, iOS)"
 edition.workspace = true
 license.workspace = true
+version.workspace = true
 
 [lib]
 name = "holochain_runtime_example_lib"
