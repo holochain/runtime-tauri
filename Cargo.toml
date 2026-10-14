@@ -23,11 +23,11 @@ license = "MIT OR Apache-2.0"
 # features cannot be subtracted downstream. Every member that depends on
 # holochain re-adds `encryption` + `schema`; the backend itself is chosen per
 # target in crates/runtime/Cargo.toml.
-holochain = { version = "0.7.0", default-features = false }
-holochain_types = "0.7.0"
+holochain = { version = "0.7.1-rc.2", default-features = false }
+holochain_types = "0.7.1-rc.2"
 # Network-stats types (ApiTransportStats) returned by AdminRequest::DumpNetworkStats;
-# pinned to the version holochain 0.7.0 resolves so it unifies to one copy.
-kitsune2_api = "0.5.0"
+# kept aligned with holochain so the API types unify to one copy.
+kitsune2_api = "0.5.1"
 sodoken = "0.1.0"
 url2 = "0.0.6"
 lair_keystore_api = "0.7.1"

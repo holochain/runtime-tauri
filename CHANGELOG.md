@@ -1,5 +1,6 @@
 # Unreleased
 
+- Upgrade to holochain v0.7.1-rc.2
 - Breaking: the legacy app websocket is removed. It attached an app interface
   that accepted any origin and injected a reusable, non-expiring token, and no
   consumer still used it; windows reach the conductor over Tauri IPC only.

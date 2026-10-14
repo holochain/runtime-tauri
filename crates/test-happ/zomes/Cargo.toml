@@ -7,8 +7,8 @@ resolver = "2"
 
 [workspace.dependencies]
 # Bump together with `holochain` in the top-level Cargo.toml.
-hdi = "=0.8.0"
-hdk = "=0.7.0"
+hdi = "=0.8.1-rc.2"
+hdk = "=0.7.1-rc.2"
 # The entry derive macros expand to paths in this crate; the version hdi uses.
 holochain_serialized_bytes = "0.0.57"
 serde = "1.0"
