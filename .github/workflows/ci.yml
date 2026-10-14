@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   test-rust:
-    name: Test Rust crates
+    name: Test Rust crates and build desktop example
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -44,47 +44,38 @@ jobs:
           key: ${{ hashFiles('flake.lock') }}
           cmd-format: nix develop --no-update-lock-file --command {0}
 
-      # `npm run ci` = fmt --check + clippy -Dwarnings + the runtime, plugin and
-      # generator test suites + a build of the example app.
-      - name: Run tests
-        run: |
-          nix develop --no-update-lock-file --command bash -c "npm ci && npm run ci"
+      - name: Install Node dependencies
+        run: nix develop --no-update-lock-file --command npm ci
+
+      - name: Check Rust formatting
+        run: nix develop --no-update-lock-file --command cargo fmt --all -- --check
+
+      - name: Build example UI
+        run: nix develop --no-update-lock-file --command npm run build -w holochain-runtime-example-ui
+
+      - name: Lint Rust
+        run: nix develop --no-update-lock-file --command cargo clippy --workspace --all-targets -- -Dwarnings
+
+      - name: Test conductor runtime
+        env:
+          RUST_BACKTRACE: "1"
+          RUST_LOG: info
+        run: nix develop --no-update-lock-file --command cargo test -p holochain-conductor-runtime -- --nocapture
+
+      - name: Test Tauri plugin
+        env:
+          RUST_BACKTRACE: "1"
+          RUST_LOG: info
+        run: nix develop --no-update-lock-file --command cargo test -p tauri-plugin-hc -- --nocapture
+
+      - name: Build desktop example
+        run: nix develop --no-update-lock-file --command cargo build -p holochain-runtime-example
+
+      - name: Test app generator
+        run: nix develop --no-update-lock-file --command npm test -w create-holochain-tauri
 
       - name: Check for uncommitted changes
         run: git diff --exit-code
-
-  build-desktop:
-    name: Build example (desktop)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Free Disk Space
-        uses: jlumbroso/free-disk-space@main
-
-      - name: Install nix
-        uses: cachix/install-nix-action@v31
-        with:
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
-          nix_path: nixpkgs=channel:nixos-24.05
-
-      - uses: cachix/cachix-action@v17
-        with:
-          name: holochain-ci
-          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
-          skipPush: ${{ github.ref != 'refs/heads/main' }}
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-        with:
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-          key: ${{ hashFiles('flake.lock') }}
-          cmd-format: nix develop --no-update-lock-file --command {0}
-
-      - name: Build holochain-runtime-example
-        run: |
-          nix develop --no-update-lock-file --command bash -c "npm ci && npm run build:example && cargo build -p holochain-runtime-example"
 
   build-android:
     name: Build example (Android)
@@ -130,7 +121,6 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - test-rust
-      - build-desktop
       - build-android
     steps:
       - name: check status
