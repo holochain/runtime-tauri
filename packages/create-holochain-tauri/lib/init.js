@@ -61,7 +61,7 @@ export function init(options) {
     appId,
     productName: options.productName ?? appId,
     identifier: options.identifier ?? defaultIdentifier(appId),
-    version: readJson(join(root, ui, "package.json")).version ?? "0.1.0",
+    version: readJson(join(root, ui, "package.json")).version,
     crateName: `${toKebab(appId)}-tauri`,
     libName: `${toSnake(appId)}_lib`,
     happBundlePath: `${relative(root, dirname(happManifest))}/${happName}.happ`,
