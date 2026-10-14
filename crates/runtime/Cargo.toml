@@ -18,7 +18,7 @@ name = "holochain_conductor_runtime"
 
 [dependencies]
 holochain_types = { workspace = true }
-holochain_keystore = "0.7.1-rc.2"
+holochain_keystore = "0.7.1"
 kitsune2_api = { workspace = true }
 lair_keystore_api = { workspace = true }
 # hc-auth: HTTP challenge/authenticate against the auth server + base64 material.

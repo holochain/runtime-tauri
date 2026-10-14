@@ -16,7 +16,7 @@ tauri = { version = "2", features = [] }
 tauri-plugin-hc = {{pluginDependency}}
 # default-features = false keeps the cranelift JIT out of iOS builds; the wasm
 # backend is chosen per target by holochain-conductor-runtime.
-holochain = { version = "0.7.1-rc.2", default-features = false, features = ["encryption", "schema"] }
+holochain = { version = "0.7.1", default-features = false, features = ["encryption", "schema"] }
 anyhow = "1"
 
 # Optimize dependencies in dev builds. Unoptimized, conductor boot takes ~20 s and a

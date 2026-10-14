@@ -2257,9 +2257,9 @@ checksum = "5baebc0774151f905a1a2cc41989300b1e6fbb29aff0ceffa1064fdd3088d582"
 
 [[package]]
 name = "fixt"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89dfc07b298bd3dda5fdc8b262663ab01de2b16c97a68c029569b95779125210"
+checksum = "5c97017e656ff4402a3966fa1bd6eead7d921107a6eca0b4b25755e69451dab5"
 dependencies = [
  "holochain_serialized_bytes",
  "lazy_static",
@@ -2950,9 +2950,9 @@ dependencies = [
 
 [[package]]
 name = "hdi"
-version = "0.8.1-rc.2"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9f4826d1b694f61b1d782184bc2531872c0b72d8d95286fe2cceccc23e41908"
+checksum = "814bd9573557e18ac9ae286c150cfc8aa71ce39eba8c207eb0bded29f92f61d8"
 dependencies = [
  "getrandom 0.3.4",
  "hdk_derive",
@@ -2970,9 +2970,9 @@ dependencies = [
 
 [[package]]
 name = "hdk"
-version = "0.7.1-rc.2"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3cbf92a6f04698f38ce390fb13b48b7b8c4e7349a2eb876bc99a830c4a78d93c"
+checksum = "6358d1a9dba51d53131b3713437e566acaa3203d567d953b6cf5d20352ea2faf"
 dependencies = [
  "getrandom 0.3.4",
  "hdi",
@@ -2988,9 +2988,9 @@ dependencies = [
 
 [[package]]
 name = "hdk_derive"
-version = "0.7.1-rc.2"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5cb6dbe68e048243f4df033010c68b0b5678bb6382da1025559acc96536fd37b"
+checksum = "2fc94d9727b5070a1f303ebf947af82b464be30e37d4096d2470a62002383275"
 dependencies = [
  "darling 0.21.3",
  "heck 0.5.0",
@@ -3129,9 +3129,9 @@ dependencies = [
 
 [[package]]
 name = "holo_hash"
-version = "0.7.1-rc.1"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ddbc26d1eec7e975a678ec093c022168997145456c95b93f659926f702e1da8"
+checksum = "d78591bf2a419842165d6d92e8a48a055e4dd80bcb56be3617ef713909890c5a"
 dependencies = [
  "base64 0.22.1",
  "blake2b_simd",
@@ -3154,9 +3154,9 @@ dependencies = [
 
 [[package]]
 name = "holochain"
-version = "0.7.1-rc.2"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f3e86be320a03301be0bc5f27880ab69bc4d211a0b12342c3f63b48553f3dd7"
+checksum = "f4bfdd6137ee65f2966cf0bbabed0ebfd71edc3a25443596c1bcad20c9a39035"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3270,9 +3270,9 @@ dependencies = [
 
 [[package]]
 name = "holochain_cascade"
-version = "0.7.1-rc.2"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9d4cd9bf4915dd6031d7b8d32a84975f1fe2055745d7b11f56b2428e8c7b258"
+checksum = "643c1d96d79d44ecdee9d1f1adde35cf96feb1fe4e3301d96938a2ab129bb8b4"
 dependencies = [
  "async-trait",
  "fixt",
@@ -3295,9 +3295,9 @@ dependencies = [
 
 [[package]]
 name = "holochain_conductor_api"
-version = "0.7.1-rc.2"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d1380806fa021959636a8d262da60e4fcd272aac4c10478a7b686031059998c"
+checksum = "d5b9c3a1eeed9fa31f6ff17a6d3e03883f32447b6649bb3d638556f2d09079af"
 dependencies = [
  "derive_more",
  "holo_hash",
@@ -3327,9 +3327,9 @@ dependencies = [
 
 [[package]]
 name = "holochain_conductor_config"
-version = "0.7.1-rc.2"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17ed63009f7390edf022e480915bbb01c254e15352884c4bda1a2a54ca40f7c2"
+checksum = "549a1c2e0ca633d0dbb3cae724ea8eae7add8247ebe8ee63510cdaf215d580c7"
 dependencies = [
  "ansi_term",
  "anyhow",
@@ -3346,9 +3346,9 @@ dependencies = [
 
 [[package]]
 name = "holochain_data"
-version = "0.7.1-rc.2"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56bc61e58ae10627df6b76fab9bf4dfb02c6a779c2ff4932cb2c8346d2f30b4b"
+checksum = "5d302613e1a2a5ec13a71f1a8af37b019b0918908138dbdce8de57c0bbe86611"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -3371,9 +3371,9 @@ dependencies = [
 
 [[package]]
 name = "holochain_integrity_types"
-version = "0.7.1-rc.2"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f06c457d925f05e78652b25a1444aafabf50a650a75fefe61cb06f6f322de8eb"
+checksum = "29462479630ac172354b5a91f1dba9b95ef2bead2ad083e3c2ec9f681fbcb635"
 dependencies = [
  "derive_builder",
  "holo_hash",
@@ -3391,9 +3391,9 @@ dependencies = [
 
 [[package]]
 name = "holochain_keystore"
-version = "0.7.1-rc.2"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7360c494f9f853921f3b89d16f9e7846088af5aabf569d017468ca5af4bc24c"
+checksum = "575b11e586f9121bc146cc10e26860b13577411c7e038436fefaddaddfd1069a"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -3423,9 +3423,9 @@ dependencies = [
 
 [[package]]
 name = "holochain_metrics"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c9ccd18731360c948a3d6b1de9f97b78f3000cf79bb24056fd738f16e139c0f"
+checksum = "7cd32b0339822c52f97ab0441e2169593e586633eb63439a647d0ffd1c4d695d"
 dependencies = [
  "digest 0.10.7",
  "dirs 6.0.0",
@@ -3449,9 +3449,9 @@ dependencies = [
 
 [[package]]
 name = "holochain_nonce"
-version = "0.7.1-rc.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64d39302a12e00c417483ae83efe2a3feecc5ed0e8115c48051a27f83981097a"
+checksum = "e138ec144b1bb8fe4a10d4e3a863782f110b225310c443cacc005b61b89f971c"
 dependencies = [
  "getrandom 0.3.4",
  "holochain_secure_primitive",
@@ -3461,9 +3461,9 @@ dependencies = [
 
 [[package]]
 name = "holochain_p2p"
-version = "0.7.1-rc.2"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eea5bda96b6d8088439f06642f0f9180db3535b406a52a81bb81e4ae43df2a91"
+checksum = "9763e38349f218d4718048e4a578e937a69e686ce84e6e79895685d6849bf175"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -3505,9 +3505,9 @@ dependencies = [
 
 [[package]]
 name = "holochain_secure_primitive"
-version = "0.7.1-rc.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1965e3c63177451ef79d20dad6b0e2a2ede71c825791e96b3baa25171fd729c0"
+checksum = "69a83a17a1b39a91e0dae2fec6feaa4456846bec0aa87ff73b1745087afc14e7"
 dependencies = [
  "paste",
  "serde",
@@ -3541,9 +3541,9 @@ dependencies = [
 
 [[package]]
 name = "holochain_state"
-version = "0.7.1-rc.2"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90771073edcef4dcc38e7139d1730a88faf5f7c9e7eb4a13f013d8d9f24f13ad"
+checksum = "3e8235de91cee98a60e8599636008111153bc89c37e72758267d5a1f48e37895"
 dependencies = [
  "async-recursion",
  "bytes",
@@ -3573,9 +3573,9 @@ dependencies = [
 
 [[package]]
 name = "holochain_state_types"
-version = "0.7.1-rc.2"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9d41b5829cdf0a4d03723dc365b9a533c6e961ac847f809130fd8a97fc58a97"
+checksum = "7a340f4979f9326a43d18056b61dc0e66c63a85e0c6dad98d1724da5f72b91db"
 dependencies = [
  "holo_hash",
  "holochain_integrity_types",
@@ -3584,9 +3584,9 @@ dependencies = [
 
 [[package]]
 name = "holochain_timestamp"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d5afc6c729af5ecd4fa82431157946a5efbb1ceee8b068cf90c8be772bed0313"
+checksum = "728b23985777a3cc87f09bf5b13b8bb0cb833cb70300aa5bd562ea695f6701f1"
 dependencies = [
  "chrono",
  "serde",
@@ -3594,9 +3594,9 @@ dependencies = [
 
 [[package]]
 name = "holochain_trace"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0ff873a00e757224a88f00855d67ece38b4d95872f012e0ad5457de1f025966"
+checksum = "a172d9a3b50390a8c2d1ee74285402115b93c27db5bf2f810a81a3b2ebc46c84"
 dependencies = [
  "chrono",
  "derive_more",
@@ -3611,9 +3611,9 @@ dependencies = [
 
 [[package]]
 name = "holochain_types"
-version = "0.7.1-rc.2"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ecb1e3b3e9ade7d73a030b3ef06f6947a321619a86a4d9ac99df80a6ebf799a"
+checksum = "cb4e98edadcac6e4f6f0e4ed4c507fc7458c1f4cbc9b0f733b28bea06f41a4e8"
 dependencies = [
  "anyhow",
  "backtrace",
@@ -3656,9 +3656,9 @@ dependencies = [
 
 [[package]]
 name = "holochain_util"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "264e1a3b8346aff8f8bd54a6a46cf3dfba9782c24b47de71d69aac3ee3f07929"
+checksum = "87c6243df3db809b2064cde73be882c99d1d4d7c14648318b59a6fe7b0a46d73"
 dependencies = [
  "backtrace",
  "cfg-if",
@@ -3718,9 +3718,9 @@ dependencies = [
 
 [[package]]
 name = "holochain_websocket"
-version = "0.7.1-rc.2"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c19a0c7a060a3e7d0fc20908e9dc76506ba7c1475c7f31cbc0f62b11db3c09c"
+checksum = "f19712b5df654cfc48cccd3faf2e1e6d2c8d2914dacd280c8d02fb57d6025f78"
 dependencies = [
  "async-trait",
  "bytes",
@@ -3737,9 +3737,9 @@ dependencies = [
 
 [[package]]
 name = "holochain_zome_types"
-version = "0.7.1-rc.2"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60fa62f128bbc2858614315af7f7dba9f8d1a220409004fc47c197fb53f99299"
+checksum = "804ea6acc1aa6b15ac85112b7e70f1498dce608d58802ba521138e0561856d4d"
 dependencies = [
  "derive_builder",
  "derive_more",
@@ -5229,9 +5229,9 @@ checksum = "1fafa6961cabd9c63bcd77a45d7e3b7f3b552b70417831fb0f56db717e72407e"
 
 [[package]]
 name = "mr_bundle"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee6c5990c696967fd595aaddbc37c4922c26f06a5b7f75596ec9b4a0d83c1cc9"
+checksum = "84f2e71e2b14764d9d5dd41388a6c0bbf6a578ab3739f2d041800c418c5a703d"
 dependencies = [
  "bytes",
  "dunce",
