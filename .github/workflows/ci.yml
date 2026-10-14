@@ -34,6 +34,15 @@ jobs:
       - uses: cachix/cachix-action@v17
         with:
           name: holochain-ci
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          skipPush: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          key: ${{ hashFiles('flake.lock') }}
+          cmd-format: nix develop --no-update-lock-file --command {0}
 
       # `npm run ci` = fmt --check + clippy -Dwarnings + the runtime, plugin and
       # generator test suites + a build of the example app.
@@ -63,6 +72,15 @@ jobs:
       - uses: cachix/cachix-action@v17
         with:
           name: holochain-ci
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          skipPush: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          key: ${{ hashFiles('flake.lock') }}
+          cmd-format: nix develop --no-update-lock-file --command {0}
 
       - name: Build holochain-runtime-example
         run: |
@@ -90,6 +108,15 @@ jobs:
       - uses: cachix/cachix-action@v17
         with:
           name: holochain-ci
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          skipPush: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          key: ${{ hashFiles('flake.lock') }}
+          cmd-format: nix develop --no-update-lock-file --command {0}
 
       - name: Build debug APK
         run: |
