@@ -6,11 +6,11 @@ this whole document before writing code.
 Decisions:
 
 - The generator lives in this repository as the npm package `create-holochain-tauri`,
-  released together with `tauri-plugin-hc`. There is no separate kangaroo-tauri
+  released together with `tauri-plugin-holochain`. There is no separate kangaroo-tauri
   repository.
 - `npm create holochain-tauri` creates or adopts an app; `npx create-holochain-tauri update`
   rewrites the files the generator owns.
-- Startup support is plain helper functions in `tauri-plugin-hc` that the app calls
+- Startup support is plain helper functions in `tauri-plugin-holochain` that the app calls
   from its own code. A launcher that sequences them behind hooks is deferred (§4.3).
 
 ## 1. Why
@@ -19,7 +19,7 @@ A Holochain app that wants a desktop + Android + iOS build on the in-process Tau
 runtime currently has to hand-write a Tauri shell. Two apps have done so, and they
 are copies of one another that have already drifted apart:
 
-- Emergence (branch `tauri-plugin-hc`) — ported to `tauri-plugin-hc`; runs on desktop,
+- Emergence (branch `tauri-plugin-hc`) — ported to `tauri-plugin-holochain`; runs on desktop,
   an Android emulator and an Android phone, with a desktop and a phone agent syncing
   over a local dev network.
 - kando (branch `main-0.7`) — still on darksoil's `tauri-plugin-holochain` 0.6 API;
@@ -43,8 +43,8 @@ later for packaging third-party `.webhapp`s; it is out of scope now.
 ## 2. What exists
 
 - `crates/runtime` — `holochain-conductor-runtime`, framework-free conductor wrapper.
-- `crates/tauri-plugin-hc` — the Tauri plugin. Identifier `hc` (`hc:default`,
-  `plugin:hc|…`). Webview env `__HC_TAURI_HOLOCHAIN__`, events
+- `crates/tauri-plugin-holochain` — the Tauri plugin. Identifier `holochain` (`holochain:default`,
+  `plugin:holochain|…`). Webview env `__HC_TAURI_HOLOCHAIN__`, events
   `holochain://ready|lair-ready|setup-failed|signal|rebound`. Serves the App API over
   Tauri IPC; `@holochain/client` 0.21 `AppWebsocket.connect()` detects it.
 - `apps/holochain-runtime-example` — minimal reference app, desktop/Android/iOS.
@@ -52,7 +52,7 @@ later for packaging third-party `.webhapp`s; it is out of scope now.
   compose.
 
 Commits that encode lessons the generator must carry: `b245937` rename to
-tauri-plugin-hc · `460f6ac` npm workspaces · `d87b17e` example installs/enables
+tauri-plugin-holochain · `460f6ac` npm workspaces · `d87b17e` example installs/enables
 directly (no app websocket) · `868739b` + `5de4c67` dev profile (`opt-level = 3`,
 `debug = false` for dependencies) · `e330298` exported dev shells · `e647b2b` Android
 `ndk_context` initialized in `JNI_OnLoad` · `58a3394` Linux camera access ·
@@ -63,7 +63,7 @@ directly (no app websocket) · `868739b` + `5de4c67` dev profile (`opt-level = 3
 | Layer | Where | Changes reach apps by |
 | --- | --- | --- |
 | Conductor + plugin | `crates/` | crate version bump |
-| Startup helpers (§4) | `tauri-plugin-hc` | crate version bump |
+| Startup helpers (§4) | `tauri-plugin-holochain` | crate version bump |
 | Repository layout, config, scripts, CI, flake (§5) | `packages/create-holochain-tauri` | `npx create-holochain-tauri update` |
 | Identity, icons, splash, UI, app-specific startup work | the app | — |
 
@@ -140,7 +140,7 @@ The generated `lib.rs` calls them from the app's own `run()` and `.setup()`:
 
 ```rust
 .setup(|app| {
-    tauri_plugin_hc::on_ready(app.handle(), |handle| async move {
+    tauri_plugin_holochain::on_ready(app.handle(), |handle| async move {
         let plugin = handle.holochain()?;
         plugin.runtime().install_app_if_missing(payload(), true).await?;
         // app-specific work goes here, as ordinary code
@@ -169,7 +169,7 @@ Owned by the generator (rewritten by `update`):
 - `src-tauri/Cargo.toml` — separate workspace root, excluded from the zome workspace,
   its own `Cargo.lock`; `holochain = { version = "…", default-features = false, features = ["encryption", "schema"] }`
   (the runtime picks the wasm backend per target; default features would link the JIT
-  into iOS); `tauri-plugin-hc`; and:
+  into iOS); `tauri-plugin-holochain`; and:
   ```toml
   [profile.dev.package."*"]
   opt-level = 3
@@ -177,7 +177,7 @@ Owned by the generator (rewritten by `update`):
   ```
 - `src-tauri/src/main.rs`, `build.rs`, and the initial `lib.rs` (§4.2; app-owned after
   `init`).
-- `src-tauri/capabilities/*.json` with `core:default` and `hc:default`.
+- `src-tauri/capabilities/*.json` with `core:default` and `holochain:default`.
 - `src-tauri/tauri.conf.json` skeleton with a `plugins.hc` section (identity fields are
   filled once at `init`, then app-owned).
 - `src-tauri/gen/android` and `gen/apple` — **generated with the current Tauri CLI at
@@ -222,7 +222,7 @@ Every item below cost real debugging time. Encode each one; do not rediscover th
    builds `aarch64` and then tries to open Android Studio. Tauri matches `ANDROID_DEVICE`
    against the device name prefix (e.g. `Volla`), not the adb serial.
 6. **`ndk_context`.** Tauri 2.11 (tao 0.35) no longer initializes it; `app_dirs2`, iroh's
-   DNS resolver and `netdev` panic on Android without it. Fixed in `tauri-plugin-hc`
+   DNS resolver and `netdev` panic on Android without it. Fixed in `tauri-plugin-holochain`
    (`e647b2b`, `JNI_OnLoad`). Apps must not define their own `JNI_OnLoad`.
 7. **Bootstrap server reachability.** `local-services` must bind `0.0.0.0`; on Android the
    host address and port are compiled in, falling back to `10.0.2.2` (the emulator's host
@@ -262,10 +262,10 @@ Every item below cost real debugging time. Encode each one; do not rediscover th
 
 ## 7. Order of work
 
-1. Push this repository; switch Emergence's `tauri-plugin-hc` dependency and flake input
+1. Push this repository; switch Emergence's `tauri-plugin-holochain` dependency and flake input
    to `github:holochain/runtime-tauri`; restore Emergence's canonical `.happ`; commit its
    branch.
-2. ~~Helpers (§4.2) in `tauri-plugin-hc`, extracted from Emergence; port Emergence's
+2. ~~Helpers (§4.2) in `tauri-plugin-holochain`, extracted from Emergence; port Emergence's
    `lib.rs` to them.~~ Done.
 3. `packages/create-holochain-tauri` (§5), using Emergence's files as the golden output.
    Its CI test: generate into a fresh `hc-scaffold` example hApp and into a copy of

@@ -13,7 +13,7 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
-tauri-plugin-hc = {{pluginDependency}}
+tauri-plugin-holochain = {{pluginDependency}}
 # default-features = false keeps the cranelift JIT out of iOS builds; the wasm
 # backend is chosen per target by holochain-conductor-runtime.
 holochain = { version = "0.7.1", default-features = false, features = ["encryption", "schema"] }

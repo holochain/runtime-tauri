@@ -2,13 +2,13 @@
   "name": "runtime-tauri-dev",
   "private": true,
   "workspaces": [
-    "crates/tauri-plugin-hc",
+    "crates/tauri-plugin-holochain",
     "apps/holochain-runtime-example",
     "apps/holochain-runtime-example/ui",
     "packages/create-holochain-tauri"
   ],
   "scripts": {
-    "build:plugin-js": "npm run build -w tauri-plugin-hc-api",
+    "build:plugin-js": "npm run build -w tauri-plugin-holochain-api",
     "build:example": "npm run build -w holochain-runtime-example-ui",
 
     "start:example": "npm run build:example && cargo run -p holochain-runtime-example",
@@ -19,10 +19,10 @@
     "build:example-ios": "npm run build:example && npm run build:ios -w holochain-runtime-example --",
 
     "test:runtime": "RUST_BACKTRACE=1 RUST_LOG=info cargo test -p holochain-conductor-runtime -- --nocapture",
-    "test:tauri-plugin-hc": "RUST_BACKTRACE=1 RUST_LOG=info cargo test -p tauri-plugin-hc -- --nocapture",
+    "test:tauri-plugin-holochain": "RUST_BACKTRACE=1 RUST_LOG=info cargo test -p tauri-plugin-holochain -- --nocapture",
     "test:example": "npm run build:example && cargo build -p holochain-runtime-example",
     "test:create": "npm test -w create-holochain-tauri",
-    "test": "npm run test:runtime && npm run test:tauri-plugin-hc && npm run test:example && npm run test:create",
+    "test": "npm run test:runtime && npm run test:tauri-plugin-holochain && npm run test:example && npm run test:create",
 
     "lint": "npm run build:example && cargo clippy --workspace --all-targets -- -Dwarnings",
     "fmt": "cargo fmt --all",

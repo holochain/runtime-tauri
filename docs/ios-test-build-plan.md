@@ -1,7 +1,7 @@
 # iOS test build plan
 
 Target: an `ios` branch off `main-0.7` where `holochain-runtime-example` (the
-in-process `tauri-plugin-hc` app) builds and runs on the iOS
+in-process `tauri-plugin-holochain` app) builds and runs on the iOS
 simulator, and ideally on a device. This is a test build — proving the stack
 compiles, the conductor boots, and zome calls execute — not a shippable app.
 

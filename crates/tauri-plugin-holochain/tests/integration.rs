@@ -18,8 +18,8 @@ use holochain::prelude::{
 };
 use holochain_types::prelude::{AppStatus, Nonce256Bits, Record, Timestamp};
 use tauri::test::{mock_builder, mock_context, noop_assets};
-use tauri_plugin_hc::test_support::{build_app, wait_for_ready, BOOT_TIMEOUT};
-use tauri_plugin_hc::{
+use tauri_plugin_holochain::test_support::{build_app, wait_for_ready, BOOT_TIMEOUT};
+use tauri_plugin_holochain::{
     AppInstallOutcome, Error, HolochainExt, HolochainPluginConfig, NetworkConfig,
 };
 use tempfile::TempDir;
@@ -30,7 +30,7 @@ use test_happ::{test_happ_bytes, ROLE_NAME, ZOME_NAME};
 const APP_ID: &str = "test-app";
 
 async fn install_and_enable_test_happ(
-    runtime: &tauri_plugin_hc::Runtime,
+    runtime: &tauri_plugin_holochain::Runtime,
 ) -> holochain::conductor::api::AppInfo {
     let app_info = runtime
         .install_app(InstallAppPayload {
@@ -227,7 +227,7 @@ fn rebind_window_reroutes_app_request_in_place() {
 fn rebind_failed_spawn_keeps_prior_binding() {
     let tmp = TempDir::new().unwrap();
     let app = mock_builder()
-        .plugin(tauri_plugin_hc::init_deferred(HolochainPluginConfig::new(
+        .plugin(tauri_plugin_holochain::init_deferred(HolochainPluginConfig::new(
             tmp.path().to_path_buf(),
             NetworkConfig::default(),
         )))
@@ -260,7 +260,7 @@ fn rebind_failed_spawn_keeps_prior_binding() {
 fn unbind_drops_window_routing() {
     let tmp = TempDir::new().unwrap();
     let app = mock_builder()
-        .plugin(tauri_plugin_hc::init_deferred(HolochainPluginConfig::new(
+        .plugin(tauri_plugin_holochain::init_deferred(HolochainPluginConfig::new(
             tmp.path().to_path_buf(),
             NetworkConfig::default(),
         )))
@@ -289,14 +289,14 @@ fn shipped_bundle_matches_rebound_payload_shape() {
     let bundle = include_str!("../dist-js/holochain-env/index.min.js");
     assert!(
         bundle.contains("payload.app_id") && bundle.contains("payload.seq"),
-        "dist-js/holochain-env/index.min.js is stale — run `npm run build` in crates/tauri-plugin-hc"
+        "dist-js/holochain-env/index.min.js is stale — run `npm run build` in crates/tauri-plugin-holochain"
     );
 }
 
 /// The injected env must take the plugin identifier from the Rust side. A
 /// literal name baked into the bundle would make the zome-call signer invoke a
 /// plugin the ACL does not know — the removed websocket path once hardcoded
-/// `"holochain"`, which broke silently when the identifier became `hc`.
+/// `"holochain"`, which broke silently when the identifier was `hc`.
 #[test]
 fn shipped_bundle_does_not_hardcode_a_plugin_name() {
     let bundle = include_str!("../dist-js/holochain-env/index.min.js");
@@ -351,7 +351,7 @@ fn on_ready_runs_before_and_after_boot() {
     let app = build_app(tmp.path());
 
     let (early_tx, early_rx) = tokio::sync::oneshot::channel();
-    tauri_plugin_hc::on_ready(app.handle(), move |handle| async move {
+    tauri_plugin_holochain::on_ready(app.handle(), move |handle| async move {
         let ready = handle.holochain().and_then(|p| p.try_runtime()).is_ok();
         early_tx.send(ready).unwrap();
         Ok::<_, Error>(())
@@ -365,7 +365,7 @@ fn on_ready_runs_before_and_after_boot() {
         assert!(registered_early_saw_runtime);
 
         let (late_tx, late_rx) = tokio::sync::oneshot::channel();
-        tauri_plugin_hc::on_ready(app.handle(), move |_| async move {
+        tauri_plugin_holochain::on_ready(app.handle(), move |_| async move {
             late_tx.send(()).unwrap();
             Ok::<_, Error>(())
         });
@@ -423,6 +423,6 @@ fn shipped_bundle_has_no_app_websocket_env() {
     let bundle = include_str!("../dist-js/holochain-env/index.min.js");
     assert!(
         !bundle.contains("__HC_LAUNCHER_ENV__"),
-        "dist-js/holochain-env/index.min.js is stale — run `npm run build` in crates/tauri-plugin-hc"
+        "dist-js/holochain-env/index.min.js is stale — run `npm run build` in crates/tauri-plugin-holochain"
     );
 }

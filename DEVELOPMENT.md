@@ -50,15 +50,15 @@ dependencies are optimized, so rebuilding after editing a workspace crate stays
 fast. The first build after a clean takes several minutes longer.
 
 Profiles only take effect in a workspace root, so every app that depends on
-`tauri-plugin-hc` has to set this itself; the plugin README says so.
+`tauri-plugin-holochain` has to set this itself; the plugin README says so.
 
 ## Testing
 
 `npm run ci` is what CI runs: `cargo fmt --check`, `cargo clippy -Dwarnings`, the
-`holochain-conductor-runtime`, `tauri-plugin-hc` and `create-holochain-tauri`
+`holochain-conductor-runtime`, `tauri-plugin-holochain` and `create-holochain-tauri`
 suites, and a build of the example app. The suites boot real conductors, so
 expect a few minutes. Each piece is its own script (`fmt:check`, `lint`,
-`test:runtime`, `test:tauri-plugin-hc`, `test:example`, `test:create`).
+`test:runtime`, `test:tauri-plugin-holochain`, `test:example`, `test:create`).
 
 The example app's UI must be built before the Rust build will succeed — Tauri
 resolves `frontendDist` at compile time via `generate_context!`. This includes
@@ -70,7 +70,7 @@ will not.
 ## Releasing
 
 1. Bump the crate versions in `crates/runtime/Cargo.toml` and
-   `crates/tauri-plugin-hc/Cargo.toml`, and the path-dependency version
+   `crates/tauri-plugin-holochain/Cargo.toml`, and the path-dependency version
    the plugin declares for the runtime.
 2. Add a `CHANGELOG.md` entry.
 3. Create and push a git tag to trigger the release CI.

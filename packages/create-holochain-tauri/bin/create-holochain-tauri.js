@@ -6,7 +6,7 @@ const USAGE = `Usage: npm create holochain-tauri -- [options]
        npx create-holochain-tauri [init] [options]
 
 Adds a Tauri desktop and Android app to the hApp repository in the current
-directory, built on runtime-tauri's tauri-plugin-hc.
+directory, built on runtime-tauri's tauri-plugin-holochain.
 
 Options:
   --app-id <id>             installed app id (default: the hApp name)

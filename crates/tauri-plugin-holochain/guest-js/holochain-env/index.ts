@@ -1,5 +1,5 @@
 /// Injects the env `@holochain/client` needs into a webview opened by
-/// `tauri-plugin-hc`, plus a zome-call signer backed by the plugin's
+/// `tauri-plugin-holochain`, plus a zome-call signer backed by the plugin's
 /// keystore. `injectHolochainTauriEnv` routes the App API over Tauri IPC with
 /// no websocket (`__HC_TAURI_HOLOCHAIN__`) and bridges conductor signals.
 
