@@ -7,8 +7,8 @@
 //! reaches the conductor over Tauri IPC, so `@holochain/client` in the UI needs
 //! no loopback websocket.
 //!
-//! The Tauri plugin identifier is `hc`: permissions are `hc:default` and
-//! `hc:allow-*`, and commands are invoked as `plugin:hc|<command>`. It has to
+//! The Tauri plugin identifier is `holochain`: permissions are `holochain:default` and
+//! `holochain:allow-*`, and commands are invoked as `plugin:holochain|<command>`. It has to
 //! match the crate's `links` key, which is where `tauri-build` derives the ACL
 //! name from.
 
@@ -61,12 +61,12 @@ use tauri::{
     WebviewWindowBuilder, WindowEvent,
 };
 
-/// The Tauri plugin identifier: the ACL prefix in capability files (`hc:default`)
-/// and the `plugin:hc|<command>` invoke path. `tauri-build` derives the ACL name
+/// The Tauri plugin identifier: the ACL prefix in capability files (`holochain:default`)
+/// and the `plugin:holochain|<command>` invoke path. `tauri-build` derives the ACL name
 /// from the crate's `links` key, so this must stay equal to that key minus its
 /// `tauri-plugin-` prefix. It is also injected into each webview, whose zome-call
 /// signer and `@holochain/client` transport invoke commands through it.
-pub const PLUGIN_NAME: &str = "hc";
+pub const PLUGIN_NAME: &str = "holochain";
 
 /// Emitted on the app handle once the conductor is up and [`HolochainExt::holochain`]
 /// is ready to use.

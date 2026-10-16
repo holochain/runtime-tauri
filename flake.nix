@@ -150,7 +150,7 @@
           '';
         in
         {
-          # Shells for apps built on tauri-plugin-hc to compose, e.g.
+          # Shells for apps built on tauri-plugin-holochain to compose, e.g.
           #   devShells.default = pkgs.mkShell {
           #     inputsFrom = [ inputs'.runtime-tauri.devShells.tauriDev ];
           #     packages = [ pkgs.nodejs_24 ];

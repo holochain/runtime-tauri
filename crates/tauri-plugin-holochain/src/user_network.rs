@@ -1,15 +1,15 @@
 //! Network settings a user saves from the app's UI, applied on top of the
 //! network config the app builds.
 //!
-//! The commands are plugin commands, invoked as `plugin:hc|get_user_network_config`
+//! The commands are plugin commands, invoked as `plugin:holochain|get_user_network_config`
 //! and so on, and Tauri's ACL decides which windows may call them; which ones
-//! `hc:default` includes and why is in `permissions/default.toml`.
+//! `holochain:default` includes and why is in `permissions/default.toml`.
 //!
 //! The app tells the plugin where the file lives by managing its path:
 //!
 //! ```ignore
 //! tauri::Builder::default()
-//!     .manage(tauri_plugin_hc::UserNetworkConfigPath(paths.user_network_config.clone()))
+//!     .manage(tauri_plugin_holochain::UserNetworkConfigPath(paths.user_network_config.clone()))
 //! ```
 
 use crate::{Error, NetworkConfig, Result};
@@ -102,7 +102,7 @@ pub(crate) fn default_user_network_config() -> UserNetworkConfig {
 }
 
 /// Save new bootstrap and relay URLs and restart the app so the conductor boots
-/// with them. Outside `hc:default`; see `permissions/default.toml`.
+/// with them. Outside `holochain:default`; see `permissions/default.toml`.
 ///
 /// The restart is requested rather than immediate (`restart` on the main thread,
 /// where sync commands run, skips `RunEvent::ExitRequested` and `Exit`), so the
@@ -245,7 +245,7 @@ mod tests {
         assert!(granted.contains(&"allow-default-user-network-config".to_string()));
         assert!(
             !granted.contains(&"allow-set-user-network-config".to_string()),
-            "hc:default must not let every window repoint the network: {granted:?}"
+            "holochain:default must not let every window repoint the network: {granted:?}"
         );
     }
 
