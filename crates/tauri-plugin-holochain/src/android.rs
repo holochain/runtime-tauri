@@ -30,8 +30,8 @@ pub extern "system" fn JNI_OnLoad(vm: *mut jni::sys::JavaVM, _reserved: *mut c_v
     let vm = unsafe { JavaVM::from_raw(vm) };
     match catch_unwind(AssertUnwindSafe(|| install_application_context(&vm))) {
         Ok(Ok(())) => {}
-        Ok(Err(e)) => log::warn!("tauri-plugin-hc: could not initialize ndk_context: {e}"),
-        Err(_) => log::warn!("tauri-plugin-hc: panic while initializing ndk_context"),
+        Ok(Err(e)) => log::warn!("tauri-plugin-holochain: could not initialize ndk_context: {e}"),
+        Err(_) => log::warn!("tauri-plugin-holochain: panic while initializing ndk_context"),
     }
     JNI_VERSION_1_6
 }

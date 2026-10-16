@@ -42,7 +42,7 @@ test("init adds a Tauri app to an hc-scaffold hApp", () => {
   const cargo = read(dir, "src-tauri/Cargo.toml");
   assert.match(cargo, /name = "forum-tauri"/);
   assert.match(cargo, /name = "forum_lib"/);
-  assert.match(cargo, /tauri-plugin-hc = \{ path = "\/opt\/runtime-tauri\/crates\/tauri-plugin-hc" \}/);
+  assert.match(cargo, /tauri-plugin-holochain = \{ path = "\/opt\/runtime-tauri\/crates\/tauri-plugin-holochain" \}/);
   assert.match(read(dir, "src-tauri/src/main.rs"), /forum_lib::run\(\);/);
 
   const conf = JSON.parse(read(dir, "src-tauri/tauri.conf.json"));

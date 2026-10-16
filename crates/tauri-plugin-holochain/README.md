@@ -1,4 +1,4 @@
-# tauri-plugin-hc
+# tauri-plugin-holochain
 
 A Tauri plugin that runs a Holochain conductor **in-process** — no separate service, no cross-process IPC. One Rust binary, on desktop, Android and iOS.
 
@@ -15,9 +15,9 @@ It is built on [`holochain-conductor-runtime`](../runtime) and exposes it throug
 
 ## Permissions
 
-`hc:default` grants `allow-sign-zome-call`, `allow-app-request`, `allow-get-user-network-config` and `allow-default-user-network-config`. `sign_payload` and `set_user_network_config` are deliberately outside it and a capability has to name `hc:allow-sign-payload` or `hc:allow-set-user-network-config` for the one window that needs them; [permissions/default.toml](permissions/default.toml) says why.
+`holochain:default` grants `allow-sign-zome-call`, `allow-app-request`, `allow-get-user-network-config` and `allow-default-user-network-config`. `sign_payload` and `set_user_network_config` are deliberately outside it and a capability has to name `holochain:allow-sign-payload` or `holochain:allow-set-user-network-config` for the one window that needs them; [permissions/default.toml](permissions/default.toml) says why.
 
-The plugin identifier `hc` is what goes in capability files and `plugin:hc|…` invokes. The webview-facing names are unchanged Holochain names rather than plugin names: the injected global is `__HC_TAURI_HOLOCHAIN__` (which `@holochain/client` looks for) and events use the `holochain://` scheme.
+The plugin identifier `holochain` is what goes in capability files and `plugin:holochain|…` invokes. The webview-facing names are unchanged Holochain names rather than plugin names: the injected global is `__HC_TAURI_HOLOCHAIN__` (which `@holochain/client` looks for) and events use the `holochain://` scheme.
 
 Every hApp's `tauri.conf.json` should also set a `csp`; the one `create-holochain-tauri` writes allows script from the app itself only (plus WebAssembly, which `@holochain/client`'s libsodium needs) and connections to Tauri's IPC. That is the layer that keeps an injection in the UI from reaching the plugin's commands at all. Tauri applies it to pages it serves itself, so a `tauri dev` run against a Vite `devUrl` runs without one; the example app has no `devUrl` and is where the policy gets exercised.
 
@@ -49,16 +49,16 @@ Functions an app calls from its own `run()` and `.setup()`; none of them owns th
 Tauri builder, so anything else the app needs at startup goes in between.
 
 ```rust
-let paths = tauri_plugin_hc::app_paths(APP_ID, env!("CARGO_PKG_AUTHORS"))?;
+let paths = tauri_plugin_holochain::app_paths(APP_ID, env!("CARGO_PKG_AUTHORS"))?;
 
 tauri::Builder::default()
-    .manage(tauri_plugin_hc::UserNetworkConfigPath(paths.user_network_config.clone()))
-    .plugin(tauri_plugin_hc::init(
+    .manage(tauri_plugin_holochain::UserNetworkConfigPath(paths.user_network_config.clone()))
+    .plugin(tauri_plugin_holochain::init(
         vec_to_locked(vec![]),
         HolochainPluginConfig::new(paths.holochain_dir.clone(), network_config(&paths)),
     ))
     .setup(|app| {
-        tauri_plugin_hc::on_ready(app.handle(), |handle| async move {
+        tauri_plugin_holochain::on_ready(app.handle(), |handle| async move {
             let plugin = handle.holochain()?;
             plugin.runtime().install_app_if_missing(payload, true).await?;
             plugin.main_window_builder("main", Some(APP_ID.into()), Default::default())
@@ -76,11 +76,11 @@ tauri::Builder::default()
   a lock file, so several dev agents can run side by side. It rejects a data
   directory too long for lair's socket (about 107 bytes).
 - `UserNetworkConfig::apply_saved` overrides the app's bootstrap and relay URLs
-  with ones the user saved. `plugin:hc|get_user_network_config`,
-  `plugin:hc|default_user_network_config` and `plugin:hc|set_user_network_config`
+  with ones the user saved. `plugin:holochain|get_user_network_config`,
+  `plugin:holochain|default_user_network_config` and `plugin:holochain|set_user_network_config`
   are plugin commands for a settings screen, reading and writing the file named
   by the managed `UserNetworkConfigPath`; setting restarts the app and needs
-  `hc:allow-set-user-network-config` in the window's capability.
+  `holochain:allow-set-user-network-config` in the window's capability.
 - `on_ready` runs startup work once the conductor is up, including when it came
   up before `on_ready` was called, and only once.
 - `Runtime::install_app_if_missing` installs and enables the hApp on first run
@@ -94,7 +94,7 @@ servers:
 
 ```rust
 let network = if tauri::is_dev() {
-    tauri_plugin_hc::dev_network_config(&tauri_plugin_hc::dev_network_url!())
+    tauri_plugin_holochain::dev_network_config(&tauri_plugin_holochain::dev_network_url!())
 } else {
     NetworkConfig::default()
 };

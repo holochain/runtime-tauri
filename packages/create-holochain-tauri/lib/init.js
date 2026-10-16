@@ -131,7 +131,7 @@ export function defaultIdentifier(appId) {
 
 function pluginDependency(runtimeTauri) {
   if (runtimeTauri) {
-    const path = join(resolve(runtimeTauri), "crates", "tauri-plugin-hc");
+    const path = join(resolve(runtimeTauri), "crates", "tauri-plugin-holochain");
     return `{ path = ${JSON.stringify(path)} }`;
   }
   return `{ git = "https://github.com/holochain/runtime-tauri" }`;
