@@ -227,10 +227,9 @@ fn rebind_window_reroutes_app_request_in_place() {
 fn rebind_failed_spawn_keeps_prior_binding() {
     let tmp = TempDir::new().unwrap();
     let app = mock_builder()
-        .plugin(tauri_plugin_holochain::init_deferred(HolochainPluginConfig::new(
-            tmp.path().to_path_buf(),
-            NetworkConfig::default(),
-        )))
+        .plugin(tauri_plugin_holochain::init_deferred(
+            HolochainPluginConfig::new(tmp.path().to_path_buf(), NetworkConfig::default()),
+        ))
         .build(mock_context(noop_assets()))
         .expect("failed to build mock tauri app");
     let plugin = app.holochain().unwrap();
@@ -260,10 +259,9 @@ fn rebind_failed_spawn_keeps_prior_binding() {
 fn unbind_drops_window_routing() {
     let tmp = TempDir::new().unwrap();
     let app = mock_builder()
-        .plugin(tauri_plugin_holochain::init_deferred(HolochainPluginConfig::new(
-            tmp.path().to_path_buf(),
-            NetworkConfig::default(),
-        )))
+        .plugin(tauri_plugin_holochain::init_deferred(
+            HolochainPluginConfig::new(tmp.path().to_path_buf(), NetworkConfig::default()),
+        ))
         .build(mock_context(noop_assets()))
         .expect("failed to build mock tauri app");
     let plugin = app.holochain().unwrap();
