@@ -2933,6 +2933,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "hc-auth-types"
+version = "0.1.7"
+source = "git+https://github.com/holochain/hc-auth-server?rev=5e2204c90e5ec01082e5091b3fc4a085ed68486d#5e2204c90e5ec01082e5091b3fc4a085ed68486d"
+
+[[package]]
 name = "hc_seed_bundle"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3236,6 +3241,7 @@ name = "holochain-conductor-runtime"
 version = "0.1.0"
 dependencies = [
  "base64 0.23.1",
+ "hc-auth-types",
  "holochain",
  "holochain_keystore",
  "holochain_types",

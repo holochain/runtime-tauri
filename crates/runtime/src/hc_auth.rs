@@ -6,7 +6,7 @@
 //!
 //! 1. get-or-create a persistent Ed25519 agent key in lair,
 //! 2. `GET <server>/now` → a base64url challenge payload,
-//! 3. sign it with the agent key via lair,
+//! 3. sign it, behind a fixed prefix, with the agent key via lair,
 //! 4. `PUT <server>/authenticate` with `{pubKey, payload, signature}` → a status,
 //! 5. if authorized, build the base64 auth material to inject into `NetworkConfig`.
 //!
@@ -15,6 +15,7 @@
 
 use crate::{RuntimeError, RuntimeResult};
 use base64::prelude::*;
+use hc_auth_types::CHALLENGE_LEN;
 use holochain::prelude::AgentPubKey;
 use holochain_keystore::MetaLairClient;
 use serde::{Deserialize, Serialize};
@@ -130,16 +131,33 @@ pub async fn fetch_challenge(auth_server_url: &str) -> RuntimeResult<String> {
         .map_err(|e| RuntimeError::HcAuth(format!("GET /now body read failed: {e}")))
 }
 
-/// Sign the challenge payload with `agent_key` via lair; returns the signature as
-/// URL-safe base64 (no padding).
+/// The bytes signed for a challenge: [`hc_auth_types::challenge_signing_bytes`]
+/// of the decoded challenge. A challenge that does not decode to exactly
+/// [`CHALLENGE_LEN`] bytes is refused, so the server chooses 32 bytes of what is
+/// signed and nothing else.
+fn challenge_signing_bytes(payload_b64url: &str) -> RuntimeResult<Vec<u8>> {
+    let payload_bytes = BASE64_URL_SAFE_NO_PAD
+        .decode(payload_b64url)
+        .map_err(|e| RuntimeError::HcAuth(format!("Invalid payload base64url: {e}")))?;
+
+    let challenge: [u8; CHALLENGE_LEN] = payload_bytes.try_into().map_err(|bytes: Vec<u8>| {
+        RuntimeError::HcAuth(format!(
+            "Challenge must be {CHALLENGE_LEN} bytes, got {}",
+            bytes.len()
+        ))
+    })?;
+
+    Ok(hc_auth_types::challenge_signing_bytes(&challenge))
+}
+
+/// Sign the prefixed challenge payload with `agent_key` via lair; returns the
+/// signature as URL-safe base64 (no padding).
 pub async fn sign_challenge(
     keystore: &MetaLairClient,
     agent_key: &AgentPubKey,
     payload_b64url: &str,
 ) -> RuntimeResult<String> {
-    let payload_bytes = BASE64_URL_SAFE_NO_PAD
-        .decode(payload_b64url)
-        .map_err(|e| RuntimeError::HcAuth(format!("Invalid payload base64url: {e}")))?;
+    let payload_bytes = challenge_signing_bytes(payload_b64url)?;
 
     let mut pub_key_32 = [0u8; 32];
     pub_key_32.copy_from_slice(agent_key.get_raw_32());
@@ -271,4 +289,41 @@ pub async fn perform_auth_flow(
         agent_key,
         raw_ed25519_b64url,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hc_auth_types::CHALLENGE_SIGNING_PREFIX;
+
+    #[test]
+    fn signing_bytes_are_the_prefix_then_the_challenge() {
+        let challenge = [3u8; CHALLENGE_LEN];
+
+        let bytes = challenge_signing_bytes(&BASE64_URL_SAFE_NO_PAD.encode(challenge)).unwrap();
+
+        assert_eq!(bytes, [CHALLENGE_SIGNING_PREFIX, &challenge[..]].concat());
+    }
+
+    #[test]
+    fn a_challenge_of_another_length_is_refused() {
+        for len in [0, CHALLENGE_LEN - 1, CHALLENGE_LEN + 1, 200] {
+            let challenge = BASE64_URL_SAFE_NO_PAD.encode(vec![3u8; len]);
+
+            let result = challenge_signing_bytes(&challenge);
+
+            assert!(
+                matches!(result, Err(RuntimeError::HcAuth(_))),
+                "a {len} byte challenge must be refused"
+            );
+        }
+    }
+
+    #[test]
+    fn a_challenge_that_is_not_base64url_is_refused() {
+        assert!(matches!(
+            challenge_signing_bytes("not base64url!"),
+            Err(RuntimeError::HcAuth(_))
+        ));
+    }
 }
