@@ -13,6 +13,7 @@ pub use hc_auth::{HcAuthConfig, HcAuthStatus};
 
 mod error;
 pub use error::*;
+pub use holochain::conductor::api::error::ConductorApiError;
 pub use holochain::conductor::error::ConductorError;
 
 mod config;

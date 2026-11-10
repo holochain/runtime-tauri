@@ -1,5 +1,9 @@
 use holochain::{
-    conductor::{api::AdminResponse, error::ConductorError, interface::error::InterfaceError},
+    conductor::{
+        api::{error::ConductorApiError, AdminResponse},
+        error::ConductorError,
+        interface::error::InterfaceError,
+    },
     prelude::{AppBundleError, CellId},
 };
 use lair_keystore_api::dependencies::one_err::OneErr;
@@ -9,6 +13,9 @@ use thiserror::Error;
 pub enum RuntimeError {
     #[error(transparent)]
     Conductor(Box<ConductorError>),
+
+    #[error(transparent)]
+    ConductorApi(Box<ConductorApiError>),
 
     #[error("Conductor was never started")]
     ConductorNotStarted,
@@ -64,6 +71,12 @@ pub enum RuntimeError {
 impl From<ConductorError> for RuntimeError {
     fn from(err: ConductorError) -> Self {
         RuntimeError::Conductor(Box::new(err))
+    }
+}
+
+impl From<ConductorApiError> for RuntimeError {
+    fn from(err: ConductorApiError) -> Self {
+        RuntimeError::ConductorApi(Box::new(err))
     }
 }
 

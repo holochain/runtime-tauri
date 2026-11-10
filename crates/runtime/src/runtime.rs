@@ -10,7 +10,10 @@ use holochain::{
         config::{ConductorConfig, KeystoreConfig, NetworkConfig},
         ConductorBuilder, ConductorHandle,
     },
-    prelude::{AgentPubKey, AppStatus, CellId, InstallAppPayload, InstalledAppId, ZomeCallParams},
+    prelude::{
+        ActionHash, AgentPubKey, AppStatus, CellId, GrantZomeCallCapabilityPayload,
+        InstallAppPayload, InstalledAppId, ZomeCallParams,
+    },
 };
 use holochain_keystore::MetaLairClient;
 use holochain_types::network::HolochainTransportStats;
@@ -327,6 +330,17 @@ impl Runtime {
         let app = self.conductor.clone().install_app_bundle(payload).await?;
         let dna_definitions = self.conductor.get_dna_definitions(&app).await?;
         Ok(AppInfo::from_installed_app(&app, &dna_definitions))
+    }
+
+    /// Commit a zome call capability grant to a cell's source chain, returning
+    /// the grant's action hash. Like [`Runtime::install_app`], it calls the
+    /// conductor directly, so a failure keeps the conductor's error type.
+    pub async fn grant_zome_call_capability(
+        &self,
+        payload: GrantZomeCallCapabilityPayload,
+    ) -> RuntimeResult<ActionHash> {
+        self.conductor.check_running()?;
+        Ok(self.conductor.grant_zome_call_capability(payload).await?)
     }
 
     pub async fn uninstall_app(&self, installed_app_id: String) -> RuntimeResult<()> {
@@ -776,15 +790,20 @@ mod test {
 
     use super::*;
     use holochain::conductor::api::CellInfo::Provisioned;
+    use holochain::conductor::api::ExternalApiWireError;
     use holochain::conductor::api::ProvisionedCell;
     use holochain::conductor::config::KeystoreConfig;
     use holochain_types::prelude::AppBundleSource;
     use holochain_types::prelude::AppStatus;
     use holochain_types::prelude::DisabledAppReason;
     use holochain_types::prelude::ExternIO;
+    use holochain_types::prelude::GrantConstraint;
+    use holochain_types::prelude::GrantZomeCallCapabilityGrant;
+    use holochain_types::prelude::GrantedFunctions;
     use holochain_types::prelude::Nonce256Bits;
     use holochain_types::prelude::Record;
     use holochain_types::prelude::Timestamp;
+    use holochain_types::prelude::ZomeCallGrant;
 
     use sodoken::LockedArray;
     use std::collections::HashMap;
@@ -1456,24 +1475,33 @@ mod test {
         // dispatch it through the in-process app API (AppRequest::CallZome)
         // rather than the websocket. get_test_entries takes no arguments, so the
         // payload is an encoded unit; an empty byte vec would fail to decode.
-        let signed = runtime
-            .sign_zome_call(ZomeCallParams {
-                provenance: cell_id.agent_pubkey().clone(),
-                cell_id: cell_id.clone(),
-                zome_name: ZOME_NAME.into(),
-                fn_name: "get_test_entries".into(),
-                cap_secret: None,
-                payload: ExternIO::encode(()).unwrap(),
-                nonce: Nonce256Bits::from([0; 32]),
-                expires_at: Timestamp(Timestamp::now().as_micros() + 60_000_000),
-            })
-            .await
-            .unwrap();
+        async fn call_get_test_entries(
+            runtime: &Runtime,
+            cell_id: &CellId,
+            provenance: AgentPubKey,
+            nonce: u8,
+        ) -> AppResponse {
+            let signed = runtime
+                .sign_zome_call(ZomeCallParams {
+                    provenance,
+                    cell_id: cell_id.clone(),
+                    zome_name: ZOME_NAME.into(),
+                    fn_name: "get_test_entries".into(),
+                    cap_secret: None,
+                    payload: ExternIO::encode(()).unwrap(),
+                    nonce: Nonce256Bits::from([nonce; 32]),
+                    expires_at: Timestamp(Timestamp::now().as_micros() + 60_000_000),
+                })
+                .await
+                .unwrap();
+            runtime
+                .handle_app_request("my-app-1".into(), AppRequest::CallZome(Box::new(signed)))
+                .await
+                .unwrap()
+        }
 
-        let resp = runtime
-            .handle_app_request("my-app-1".into(), AppRequest::CallZome(Box::new(signed)))
-            .await
-            .unwrap();
+        let resp =
+            call_get_test_entries(&runtime, cell_id, cell_id.agent_pubkey().clone(), 0).await;
 
         // A fresh cell has no test entries: the call round-trips to an empty list.
         let AppResponse::ZomeCalled(io) = resp else {
@@ -1481,6 +1509,36 @@ mod test {
         };
         let entries: Vec<Record> = io.decode().unwrap();
         assert!(entries.is_empty());
+
+        let other_agent = runtime.device_agent_key();
+        let resp = call_get_test_entries(&runtime, cell_id, other_agent.clone(), 1).await;
+        assert!(
+            matches!(
+                resp,
+                AppResponse::Error(ExternalApiWireError::ZomeCallUnauthorized(_))
+            ),
+            "expected ZomeCallUnauthorized, got {resp:?}"
+        );
+
+        runtime
+            .grant_zome_call_capability(GrantZomeCallCapabilityPayload {
+                cell_id: cell_id.clone(),
+                cap_grant: GrantZomeCallCapabilityGrant {
+                    tag: "unrestricted".into(),
+                    constraint: GrantConstraint::Unrestricted,
+                    grant: ZomeCallGrant {
+                        functions: GrantedFunctions::All,
+                    },
+                },
+            })
+            .await
+            .unwrap();
+
+        let resp = call_get_test_entries(&runtime, cell_id, other_agent, 2).await;
+        assert!(
+            matches!(resp, AppResponse::ZomeCalled(_)),
+            "expected AppResponse::ZomeCalled, got {resp:?}"
+        );
     }
 
     #[tokio::test(flavor = "multi_thread")]
