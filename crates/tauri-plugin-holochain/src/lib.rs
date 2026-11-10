@@ -37,7 +37,9 @@ pub use user_network::{UserNetworkConfig, UserNetworkConfigPath};
 // Re-export the native config type consumers build, and the runtime itself.
 pub use holochain::conductor::config::NetworkConfig;
 pub use holochain_conductor_runtime::Runtime;
-pub use holochain_conductor_runtime::{AppInstallOutcome, ConductorError, RuntimeError};
+pub use holochain_conductor_runtime::{
+    AppInstallOutcome, ConductorApiError, ConductorError, RuntimeError,
+};
 // hc-auth: re-export the module and its config/status types so consumers can
 // build a `HcAuthConfig` and read `HcAuthStatus` without depending on the
 // runtime crate directly.

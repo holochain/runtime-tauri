@@ -8,6 +8,7 @@ What it covers:
 
 - **Two-phase boot.** Lair is spawned first, the hc-auth flow (if configured) signs a challenge against it and injects the resulting auth material into the `NetworkConfig`, and only then is the conductor built on that same keystore. This is what makes authenticated bootstrap and relay work on a first boot.
 - **App lifecycle** — install, enable, disable, uninstall, list; `install_app_if_missing` for install-if-needed plus enable.
+- **Capabilities.** `grant_zome_call_capability` commits a zome call capability grant to a cell.
 - **Signing** — zome calls, and arbitrary payloads against a caller-chosen agent key.
 - **Keys** — device key derivation, agent key generation, seed import and export.
 - **App API and signals** — `handle_app_request` serves the full App API in-process; `subscribe_to_app_signals` yields an app's signal stream.
