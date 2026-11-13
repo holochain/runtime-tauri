@@ -34,6 +34,11 @@ pub struct HcAuthConfig {
     pub auth_bootstrap: bool,
     #[serde(default = "default_true")]
     pub auth_relay: bool,
+    /// Make the device seed's key a new install's hc-auth agent key, so
+    /// [`crate::Runtime::export_agent_seed`] backs it up. A key an install
+    /// already persisted is kept.
+    #[serde(default)]
+    pub use_device_key: bool,
 }
 
 /// Result of `PUT /authenticate`, mapped from the HTTP status code.
@@ -69,10 +74,12 @@ pub fn agent_pub_key_to_raw_ed25519_b64url(key: &AgentPubKey) -> String {
 }
 
 /// Reuse the persisted hc-auth agent key (written to `<dir>/hc-auth-agent-key`)
-/// if present, else mint a fresh Ed25519 keypair in lair and persist its pubkey.
+/// if present, else take `device_key` or, without one, mint a fresh Ed25519
+/// keypair in lair, and persist its pubkey.
 pub async fn get_or_create_auth_key(
     keystore: &MetaLairClient,
     holochain_dir: &Path,
+    device_key: Option<AgentPubKey>,
 ) -> RuntimeResult<AgentPubKey> {
     let key_path = auth_key_path(holochain_dir);
 
@@ -93,11 +100,16 @@ pub async fn get_or_create_auth_key(
         }
     }
 
-    log::info!("Generating new hc-auth agent key via Lair");
-    let agent_pub_key = keystore
-        .new_sign_keypair_random()
-        .await
-        .map_err(RuntimeError::Lair)?;
+    let agent_pub_key = match device_key {
+        Some(key) => key,
+        None => {
+            log::info!("Generating new hc-auth agent key via Lair");
+            keystore
+                .new_sign_keypair_random()
+                .await
+                .map_err(RuntimeError::Lair)?
+        }
+    };
 
     let key_b64 = format!("{}", agent_pub_key);
     if let Err(e) = std::fs::write(&key_path, &key_b64) {
@@ -132,14 +144,25 @@ pub async fn fetch_challenge(auth_server_url: &str) -> RuntimeResult<String> {
 
 /// Sign the challenge payload with `agent_key` via lair; returns the signature as
 /// URL-safe base64 (no padding).
+///
+/// Refuses any payload but the auth server's 32-byte challenge: `agent_key` can
+/// be the app's agent identity, which must never sign arbitrary bytes such as
+/// a serialized action.
 pub async fn sign_challenge(
     keystore: &MetaLairClient,
     agent_key: &AgentPubKey,
     payload_b64url: &str,
 ) -> RuntimeResult<String> {
-    let payload_bytes = BASE64_URL_SAFE_NO_PAD
+    let payload_bytes: [u8; 32] = BASE64_URL_SAFE_NO_PAD
         .decode(payload_b64url)
-        .map_err(|e| RuntimeError::HcAuth(format!("Invalid payload base64url: {e}")))?;
+        .map_err(|e| RuntimeError::HcAuth(format!("Invalid payload base64url: {e}")))?
+        .try_into()
+        .map_err(|payload: Vec<u8>| {
+            RuntimeError::HcAuth(format!(
+                "Challenge payload must be 32 bytes, got {}",
+                payload.len()
+            ))
+        })?;
 
     let mut pub_key_32 = [0u8; 32];
     pub_key_32.copy_from_slice(agent_key.get_raw_32());
@@ -211,8 +234,10 @@ pub async fn perform_auth_flow(
     keystore: &MetaLairClient,
     config: &HcAuthConfig,
     holochain_dir: &Path,
+    device_key: &AgentPubKey,
 ) -> RuntimeResult<AuthFlowResult> {
-    let agent_key = get_or_create_auth_key(keystore, holochain_dir).await?;
+    let device_key = config.use_device_key.then(|| device_key.clone());
+    let agent_key = get_or_create_auth_key(keystore, holochain_dir, device_key).await?;
     let raw_ed25519_b64url = agent_pub_key_to_raw_ed25519_b64url(&agent_key);
 
     log::info!(
