@@ -183,7 +183,13 @@ impl Runtime {
 
         // Phase between (a) and (b): run the hc-auth flow and inject the material.
         let (hc_auth_status, hc_auth_agent_key, hc_auth_raw_ed25519_b64url) = match &hc_auth {
-            Some(cfg) => match hc_auth::perform_auth_flow(&lair_client, cfg, &data_root_path).await
+            Some(cfg) => match hc_auth::perform_auth_flow(
+                &lair_client,
+                cfg,
+                &data_root_path,
+                &device_agent_key,
+            )
+            .await
             {
                 Ok(result) => {
                     if let Some(material) = &result.auth_material {
@@ -495,9 +501,10 @@ impl Runtime {
     ///
     /// Asks lair to box-encrypt the device seed to a fresh local recipient
     /// keypair (the inverse of [`Runtime::import_key_seed`]), then decrypts it
-    /// locally. The device seed is the open-mode identity; note that in
-    /// authenticated mode the hc-auth agent key is a separate lair key, so this
-    /// backs up the device identity, not the hc-auth key.
+    /// locally. The device seed is the open-mode identity. In authenticated
+    /// mode it is also the hc-auth agent key of an install that first ran the
+    /// auth flow with [`HcAuthConfig::use_device_key`] set; any other hc-auth
+    /// key is a separate lair key this does not back up.
     pub async fn export_agent_seed(&self) -> RuntimeResult<[u8; 32]> {
         let client = self.lair_client.lair_client();
 
@@ -592,8 +599,13 @@ impl Runtime {
         self.stop_conductor_only().await?;
 
         log::info!("hc-auth restart: generating fresh auth material");
-        let result =
-            hc_auth::perform_auth_flow(&self.lair_client, &cfg, &self.data_root_path).await?;
+        let result = hc_auth::perform_auth_flow(
+            &self.lair_client,
+            &cfg,
+            &self.data_root_path,
+            &self.device_agent_key,
+        )
+        .await?;
         if let Some(material) = &result.auth_material {
             if add_auth_material_to_bootstrap {
                 network.base64_auth_material_bootstrap = Some(material.clone());
@@ -1108,6 +1120,101 @@ mod test {
         assert_eq!(
             key1, key2,
             "restoring the device seed must reproduce the device agent key"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_hc_auth_key_is_the_device_key_only_when_configured() {
+        use base64::prelude::*;
+        use lair_keystore_api::lair_store::LairEntryInfo;
+        // No auth server: the flow creates the key, then fails to reach one.
+        let config = HcAuthConfig {
+            auth_server_url: String::new(),
+            auth_bootstrap: true,
+            auth_relay: true,
+            use_device_key: true,
+        };
+        let boot = |dir: &TempDir, pending_import_seed| {
+            Runtime::new_with_boot_config(
+                empty_passphrase(),
+                RuntimeBootConfig {
+                    data_root_path: dir.path().into(),
+                    network: RuntimeNetworkConfig::default().into(),
+                    hc_auth: Some(config.clone()),
+                    pending_import_seed,
+                },
+            )
+        };
+        let tmp = TempDir::new().unwrap();
+        let runtime = boot(&tmp, None).await.unwrap();
+        let hc_auth_key = runtime.hc_auth_agent_key().unwrap();
+        assert_eq!(hc_auth_key, runtime.device_agent_key());
+
+        let challenge = |len| BASE64_URL_SAFE_NO_PAD.encode(vec![0u8; len]);
+        hc_auth::sign_challenge(&runtime.lair_client, &hc_auth_key, &challenge(32))
+            .await
+            .unwrap();
+        assert!(matches!(
+            hc_auth::sign_challenge(&runtime.lair_client, &hc_auth_key, &challenge(33)).await,
+            Err(RuntimeError::HcAuth(_))
+        ));
+
+        let seed = runtime.export_agent_seed().await.unwrap();
+        let restored_dir = TempDir::new().unwrap();
+        let restored = boot(&restored_dir, Some(seed.to_vec())).await.unwrap();
+        assert_eq!(
+            restored.hc_auth_agent_key(),
+            Some(hc_auth_key),
+            "restoring the device seed must reproduce the hc-auth key"
+        );
+
+        let default_dir = TempDir::new().unwrap();
+        let default_key = hc_auth::perform_auth_flow(
+            &runtime.lair_client,
+            &HcAuthConfig {
+                use_device_key: false,
+                ..config.clone()
+            },
+            default_dir.path(),
+            &runtime.device_agent_key(),
+        )
+        .await
+        .unwrap()
+        .agent_key;
+        assert_ne!(default_key, runtime.device_agent_key());
+        let default_seed = runtime
+            .lair_client
+            .lair_client()
+            .list_entries()
+            .await
+            .unwrap()
+            .into_iter()
+            .find_map(|entry| match entry {
+                LairEntryInfo::Seed { seed_info, .. }
+                    if seed_info.ed25519_pub_key.0[..] == *default_key.get_raw_32() =>
+                {
+                    Some(seed_info)
+                }
+                _ => None,
+            })
+            .expect("the default key's seed must be in lair");
+        assert!(
+            !default_seed.exportable,
+            "the default key must not be exportable"
+        );
+
+        let reused = hc_auth::perform_auth_flow(
+            &runtime.lair_client,
+            &config,
+            default_dir.path(),
+            &runtime.device_agent_key(),
+        )
+        .await
+        .unwrap()
+        .agent_key;
+        assert_eq!(
+            reused, default_key,
+            "a persisted key must be reused whatever the option says"
         );
     }
 
