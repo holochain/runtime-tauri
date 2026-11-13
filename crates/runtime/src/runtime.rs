@@ -1,5 +1,8 @@
 use crate::hc_auth::{self, HcAuthConfig, HcAuthStatus};
-use crate::{AppInstallOutcome, RuntimeConfig, RuntimeError, RuntimeResult, DEVICE_SEED_LAIR_TAG};
+use crate::{
+    AppInstallOutcome, ConductorError, RuntimeConfig, RuntimeError, RuntimeResult,
+    DEVICE_SEED_LAIR_TAG,
+};
 use holochain::conductor::api::ZomeCallParamsSigned;
 use holochain::{
     conductor::{
@@ -11,8 +14,8 @@ use holochain::{
         ConductorBuilder, ConductorHandle,
     },
     prelude::{
-        ActionHash, AgentPubKey, AppStatus, CellId, GrantZomeCallCapabilityPayload,
-        InstallAppPayload, InstalledAppId, ZomeCallParams,
+        ActionHash, AgentPubKey, AppCapGrantInfo, AppStatus, CellId,
+        GrantZomeCallCapabilityPayload, InstallAppPayload, InstalledAppId, ZomeCallParams,
     },
 };
 use holochain_keystore::MetaLairClient;
@@ -341,6 +344,48 @@ impl Runtime {
     ) -> RuntimeResult<ActionHash> {
         self.conductor.check_running()?;
         Ok(self.conductor.grant_zome_call_capability(payload).await?)
+    }
+
+    /// List the capability grants on each provisioned cell of an app.
+    pub async fn list_capability_grants(
+        &self,
+        installed_app_id: InstalledAppId,
+        include_revoked: bool,
+    ) -> RuntimeResult<AppCapGrantInfo> {
+        self.conductor.check_running()?;
+        let app_info = self
+            .conductor
+            .get_app_info(&installed_app_id)
+            .await?
+            .ok_or(ConductorError::AppNotInstalled(installed_app_id))?;
+        let cells = app_info
+            .cell_info
+            .into_values()
+            .flatten()
+            .filter_map(|cell| match cell {
+                CellInfo::Provisioned(cell) => Some(cell.cell_id),
+                _ => None,
+            })
+            .collect();
+        Ok(self
+            .conductor
+            .capability_grant_info(&cells, include_revoked)
+            .await?)
+    }
+
+    /// Revoke a zome call capability grant on a cell, returning the action hash
+    /// of the revocation. Like [`Runtime::grant_zome_call_capability`], a
+    /// failure keeps the conductor's error type.
+    pub async fn revoke_zome_call_capability(
+        &self,
+        cell_id: CellId,
+        action_hash: ActionHash,
+    ) -> RuntimeResult<ActionHash> {
+        self.conductor.check_running()?;
+        Ok(self
+            .conductor
+            .revoke_zome_call_capability(cell_id, action_hash)
+            .await?)
     }
 
     pub async fn uninstall_app(&self, installed_app_id: String) -> RuntimeResult<()> {
@@ -1520,7 +1565,20 @@ mod test {
             "expected ZomeCallUnauthorized, got {resp:?}"
         );
 
-        runtime
+        async fn grant_hashes(runtime: &Runtime, include_revoked: bool) -> Vec<ActionHash> {
+            let AppCapGrantInfo(cells) = runtime
+                .list_capability_grants("my-app-1".into(), include_revoked)
+                .await
+                .unwrap();
+            cells
+                .into_iter()
+                .flat_map(|(_, grants)| grants)
+                .map(|grant| grant.action_hash)
+                .collect()
+        }
+
+        let grants_before = grant_hashes(&runtime, false).await;
+        let grant_hash = runtime
             .grant_zome_call_capability(GrantZomeCallCapabilityPayload {
                 cell_id: cell_id.clone(),
                 cap_grant: GrantZomeCallCapabilityGrant {
@@ -1533,12 +1591,36 @@ mod test {
             })
             .await
             .unwrap();
+        assert_eq!(
+            grant_hashes(&runtime, false).await,
+            [grants_before.clone(), vec![grant_hash.clone()]].concat()
+        );
 
-        let resp = call_get_test_entries(&runtime, cell_id, other_agent, 2).await;
+        let resp = call_get_test_entries(&runtime, cell_id, other_agent.clone(), 2).await;
         assert!(
             matches!(resp, AppResponse::ZomeCalled(_)),
             "expected AppResponse::ZomeCalled, got {resp:?}"
         );
+
+        runtime
+            .revoke_zome_call_capability(cell_id.clone(), grant_hash.clone())
+            .await
+            .unwrap();
+
+        let resp = call_get_test_entries(&runtime, cell_id, other_agent, 3).await;
+        assert!(
+            matches!(
+                resp,
+                AppResponse::Error(ExternalApiWireError::ZomeCallUnauthorized(_))
+            ),
+            "expected ZomeCallUnauthorized, got {resp:?}"
+        );
+        assert_eq!(grant_hashes(&runtime, false).await, grants_before);
+        assert!(grant_hashes(&runtime, true).await.contains(&grant_hash));
+        assert!(matches!(
+            runtime.list_capability_grants("no-such-app".into(), false).await,
+            Err(RuntimeError::Conductor(e)) if matches!(*e, ConductorError::AppNotInstalled(_))
+        ));
     }
 
     #[tokio::test(flavor = "multi_thread")]
