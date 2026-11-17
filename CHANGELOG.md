@@ -4,6 +4,48 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## \[[0.2.0](https://github.com/holochain/runtime-tauri/compare/v0.1.0...v0.2.0)\] - 2026-11-17
+
+### Features
+
+- *(runtime)* Add Runtime::list_capability_grants and Runtime::revoke_zome_call_capability by @zo-el in [#46](https://github.com/holochain/runtime-tauri/pull/46)
+  - List_capability_grants returns the capability grants on an app's provisioned cells, revoked ones too when asked, so an app can check for an existing grant before it commits another. revoke_zome_call_capability revokes a zome call capability grant by its action hash. Like grant_zome_call_capability, it calls the conductor directly, so a failure keeps its typed ConductorApiError.
+- \[**BREAKING**\] *(runtime)* Add an option to use the device key as the hc-auth agent key by @zo-el in [#44](https://github.com/holochain/runtime-tauri/pull/44)
+  - With HcAuthConfig::use_device_key set, a new install uses the device seed's key as its hc-auth agent key, so export_agent_seed backs it up and pending_import_seed restores it. The option defaults to false, which keeps the current non-exportable key. An install that already persisted a key keeps it, whatever the option says.
+  - Sign_challenge signs only a 32-byte challenge, because the hc-auth key can be the app's agent identity.
+  - **Breaking Change**: HcAuthConfig struct literals must set use_device_key (false keeps today's key). hc_auth::get_or_create_auth_key takes the device key as an Option third argument, hc_auth::perform_auth_flow takes it as a fourth argument, and hc_auth::sign_challenge refuses a payload that is not 32 bytes.
+- \[**BREAKING**\] *(runtime)* Add Runtime::grant_zome_call_capability by @zo-el in [#45](https://github.com/holochain/runtime-tauri/pull/45)
+  - Commit a zome call capability grant to a cell through the conductor handle, so an app can let other agents call a cell's zome functions without an admin websocket. Like install_app, it calls the conductor directly, so a failure keeps its typed ConductorApiError, which the runtime and the plugin now re-export.
+  - **Breaking Change**: RuntimeError has a new ConductorApi variant.
+
+### Miscellaneous Tasks
+
+- Mark the example app publish = false by @zippy
+  - Cargo-semver-checks in the release workflow built it and failed on glib-sys.
+- Update the AI_POLICY.md with shared content in [#37](https://github.com/holochain/runtime-tauri/pull/37)
+
+### Refactor
+
+- \[**BREAKING**\] Rename tauri-plugin-hc to tauri-plugin-holochain by @zippy
+  - Follows the Tauri plugin naming convention with the full product name, and publishes under the tauri-plugin-holochain crate we now own.
+    - crate and links key: tauri-plugin-holochain (crates/tauri-plugin-holochain)
+    - npm package: tauri-plugin-holochain-api
+    - plugin identifier: holochain, so permissions are holochain:default and holochain:allow-*, and commands are invoked as plugin:holochain|<command>
+    - example app, create-holochain-tauri template, CI, scripts and docs updated
+  - **Breaking Change**: Apps must depend on tauri-plugin-holochain, import tauri_plugin_holochain, and change hc:* permissions in their capability files to holochain:*.
+
+### Styling
+
+- Cargo fmt after plugin rename by @zippy in [#38](https://github.com/holochain/runtime-tauri/pull/38)
+
+### Automated Changes
+
+- *(deps)* Bump the nix group across 1 directory with 4 updates by @dependabot[bot] in [#41](https://github.com/holochain/runtime-tauri/pull/41)
+- *(deps)* Bump the npm group with 6 updates by @dependabot[bot] in [#42](https://github.com/holochain/runtime-tauri/pull/42)
+- *(deps)* Bump rust-toolchain from 1.99.0 to 1.99.1 by @dependabot[bot] in [#39](https://github.com/holochain/runtime-tauri/pull/39)
+- *(deps)* Bump the cargo-minor-patch group with 11 updates by @dependabot[bot] in [#43](https://github.com/holochain/runtime-tauri/pull/43)
+- *(deps)* Bump the updates group with 2 updates by @dependabot[bot] in [#40](https://github.com/holochain/runtime-tauri/pull/40)
+
 ## \[[0.1.0](https://github.com/holochain/runtime-tauri/commits/v0.1.0-rc.0)\] - 2026-10-14
 
 ### Features
