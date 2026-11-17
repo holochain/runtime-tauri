@@ -4,6 +4,7 @@ description = "Example app for the in-process tauri-plugin-holochain (desktop, A
 edition.workspace = true
 license.workspace = true
 version.workspace = true
+publish = false
 
 [lib]
 name = "holochain_runtime_example_lib"
